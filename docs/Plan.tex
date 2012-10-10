@@ -1,0 +1,235 @@
+\documentclass{report}
+%\documentclass[aps,preprint,nobibnotes]{revtex}
+\usepackage{graphics,graphicx,amsfonts,amsmath,amsbsy,amssymb,color}
+\usepackage{bm}
+%\usepackage{epic}
+%\usepackage{mciteplus}
+\usepackage{subfigure}
+\usepackage{vector}  % Allows "\bvec{}" and "\buvec{}" for "blackboard" style bold vectors in maths
+
+\begin{document}
+\title{Periodic Hartree--Fock `Hack-a-thon' planning document}
+\date{\today}
+\maketitle
+
+\section{Introduction}
+
+This is a woefully incomplete document to try to begin planning of the Periodic Hartree--Fock code (suggestions of names for the code welcome!). 
+Feel free to add to this document as we go along and I will try to keep it as an up-to-date record of the status of the overall project.
+The main aim is to try out a method of `crowd-coding' scientific programming which is novel, social, hopefully productive, as well as a way to learn about techniques that few of us have experience with. 
+You will need to talk to others as you go along to ensure that everything fits together, so take the opportunity of us all being in the same place.
+The long term goal is an open-source, ab-initio periodic Hartree--Fock package, with easy interface and clear modular structure, such that higher-level quantum
+chemical methods can be added in a straightward way. Since these are likely to be the computational bottleneck ultimately, speed of the HF part is
+not of paramount importance initially. For inclusivity, this will be a mixed language package (C++ and Fortran).
+
+Github for the code is at: {\tt https://github.com/ghb24/PHF\_Chan.git}
+You should branch off this code, and regularly merge from it into your own work flow to keep things up-to-date. Hopefully with the necessary modular structure, this will not
+be too much of an issue.
+
+\section{Aims}
+
+\subsection{First stint}
+
+Participants will need to carefully prepare their task in advance to prevent complete chaos. 
+We will have short presentations on the topics that people are assigned on Friday (potentially also Saturday), 
+where each person will explain what they need to do, how it fits in to the general structure of the code, 
+the interface to their part, and external routines that they will need to call.
+
+Shortly after the hackathon, we will also have debriefing short presentations, where each person presents 
+their code, explains how it works, and suggests what to do next, so we can formulate a plan for the next hackathon.
+
+Ambition for the end of this stint is to obtain the Hartree--Fock energy for a gamma-point Hydrogen solid with minimal S-function basis, from initial guess, or if lucky, full SCF solution. 
+We would ideally like to demonstrate convergence with supercell size. Initial topics may include:
+
+\begin{itemize}
+\item Basis and primitive integral evaluation -- {\em Gerald}
+
+\item User interface, input parser and determinantion of cell and space group
+\begin{itemize}
+\item construction of supercell from primative cell
+\end{itemize}
+
+\item Symmetry and construction of SA-AOs
+
+\item Coulomb lattice sums I. Expansion on grid + FFT.
+
+\item Coulomb lattice sums II. Expand as Gaussians (Geralds idea)
+
+\item Coulomb lattice sums III. FMM -- Fast multipole method
+
+\item Truncated Exchange lattice sum
+
+\item Ewald summations
+
+\item Initial wavefunction guess
+
+\item Fock matrix build and SCF
+\begin{itemize}
+\item Care needed to avoid linear dependency issues which plague crystal/cryscor
+\end{itemize}
+
+\item DFT (Gerald has code to create grids)
+
+\item Relativity
+
+\end{itemize}
+
+\subsection{Topics for the future}
+
+\begin{itemize}
+\item k-point symmetry (complex integrals) and arbitrary k-point meshes
+\item Gradients
+\item Support for pseudopotentials
+\item Extension to arbitrary basis functions
+\item Band structure calculations
+\item Parallelization
+\item UHF
+\item Molecular orbital integrals
+\item Orbital localization similar to CRYSTAL?
+\item Post-HF methods
+\end{itemize}
+
+
+\section{Coding standards}
+
+Clear code and commenting is essential in a project with many potentially short-term developers, so others can read, understand and extend your code.
+We should use doxygen to help with this. Also, to get an idea for how your code should fit into a general structure by looking at other open-source
+periodic HF codes (e.g. M. Challacombe's and others? ...)
+
+\section{Global datastructures}
+
+We aim to set up a build environment with the main datastructures and their interfaces before Friday so you can look at them. Interfaces and classes will be simple
+for ease of use and for the mixed language. Approximate initial structure will be:
+
+\begin{itemize}
+\item Primitive Unit cell:
+\begin{itemize}
+\item integer: nAtoms (number of atoms)
+\item nAtoms $\times$ real 3-vectors: atomic coordinates
+\item nAtoms $\times$ `basis' type: basis on each atom
+\end{itemize}
+
+\item Lattice:
+\begin{itemize}
+\item Primitive Unit cell
+\item 3 $\times$ real 3-vectors: real-space lattice vectors
+\item 3 $\times$ real 3-vectors: reciprocal-space lattice vectors
+\item real: Volume
+\item integer 3-vector: Repetition of primitive unit cell for supercell construction
+\item 3 $\times$ real 3-vectors: real-space supercell vectors
+\end{itemize}
+
+\item Basis-function-group: (for given orbital `shell')
+\begin{itemize}
+\item integer: iCenter  (nuclear center)
+\item integer: iExp     (Index into exponent array)
+\item integer: nExp     (Number of exponents)
+\item integer: iCon     (Index into contraction coefficient array)
+\item integer: nCon     (Number of contraction coefficients)
+\item integer: AngMom   (Angular momentum of shell)
+\end{itemize}
+
+\item Basis:
+\begin{itemize}
+\item integer: nGrp (number of basis shells)
+\item integer: nBasisGrp (number of integers in `basis-function-group' - currently 6)
+\item nBasisGrp $\times$ nGrp integers: Specification of basis
+\item real array: Expn(*) Array of exponents indexed by iExp
+\item real array: Con(*) Array of contraction coefficients indexed by iCon
+\item integer: nAO Number of AOs per primitive cell
+\end{itemize}
+\end{itemize}
+    
+\subsection{Interfaces}
+
+To do.
+
+\section{Incomplete References}
+
+Please feel free to add (and remove) items to this list as you find them helpful. If a reference is particularly useful, you should refer to it in the code.
+
+\subsection{Books}
+
+\begin{itemize}
+\item C. Pisani, R. Dovesi and C. Roetti, `Hartree--Fock Ab Initio Treatment of Crystalline Systems', Lect. N. Chem. 67, Spinger Verlag, Heidelberg, (1996)
+
+\item C. Pisani, `Quantum-Mechanical Ab-initio calculation of the Properties of Crystalline Materials',Lect. N. Chem. 67, Spinger Verlag, Heidelberg, (1996)
+\end{itemize}
+
+These are both out of the library, and on my desk.
+
+\subsection{General periodic HF papers}
+\begin{itemize}
+\item R. Dovesi, B. Civalleri, R. Orlando, C. Roetti, V. R. Saunders, `Ab initio quantum simulation in solid state chemistry', Rev. Comput. Chem. 21, 1-125 (2005)
+\end{itemize}
+I do not seem to have access to this paper - someone let me know if they can find it
+
+\begin{itemize}
+\item Paier, J., Diaconu, CV., Scuseria, GE., Guidon, M., VandeVondele, J., Hutter, J.,`Accurate Hartree-Fock energy of extended systems using large Gaussian basis sets', PRB, 80, 174114 (2009)
+
+\item Tymczak, CJ., Challacombe, M., `Linear scaling computation of the Fock matrix. VII. Periodic density functional theory at the Gamma point', J. Chem. Phys., 122, 134102 (2005)
+
+\item V.R. Saunders, `Ab initio Hartree-Fock calculations for periodic systems', Faraday Symp. Chem. S. 19, 79-84 (1984)
+\end{itemize}
+
+\subsection{Gaussian basis sets for the solid state}
+\begin{itemize}
+\item VandeVondele, J., Hutter, J., `Gaussian basis sets for accurate calculations on molecular systems in gas and condensed phases', J. Chem. Phys., 127, 114105 (2007)
+\end{itemize}
+
+\subsection{The coulomb summation}
+
+\begin{itemize}
+\item Gan, CK., Tymczak, CJ., Challacombe, M., `Linear scaling computation of the Fock matrix. VII. Parallel computation of the Coulomb matrix', J. Chem. Phys., 121, 6608, (2004)
+
+\item Schwegler, E., Challacombe, M., Head-Gordon, M., `A multipole acceptability criterion for electronic structure theory', J. Chem. Phys., 109, 8764 (1998)
+
+\item Challacombe, M., White, C., HeadGordon, M., `Periodic boundary conditions and the fast multipole method', J. Chem. Phys., 107, 10131 (1997)
+
+\item Challacombe, M., Schwegler, E., Almlof, J., `Fast assembly of the Coulomb matrix: A quantum chemical tree code', J. Chem. Phys., 104, 4685 (1996)
+
+\item V.R. Saunders, C. Freyria Fava, R. Dovesi, L. Salasco and C. Roetti, `On the electrostatic potential in crystalline systems where the charge density is expanded in Gaussian Functions.', Mol. Phys. 77, 629-665 (1992)
+
+\item R. Dovesi, C. Pisani, C. Roetti and V.R. Saunders, `Treatment of Coulomb interactions in Hartree-Fock calculations of periodic systems.', Phys. Rev. B 28, 5781-5792 (1983)
+
+\end{itemize}
+
+\subsection{The exchange series}
+\begin{itemize}
+\item Guidon, M, Hutter, J and VandeVondele, J, `Auxiliary Density Matrix Methods for Hartree-Fock Exchange Calculations', J. Chem. Theory Comput., 6, 2348-2364 (2010)
+
+\item Guidon, M, Hutter, J and VandeVondele, J, `Robust Periodic Hartree-Fock Exchange for Large-Scale Simulations Using Gaussian Basis Sets', J. Chem. Theory Comput., 5, 3010-3021 (2009)
+
+\item J. Spencer, A. Alavi, `Efficient calculation of the exact exchange energy in periodic systems using a truncated Coulomb potential', PRB, 77, 193110 (2008)
+
+\item Weber, V., Challacombe, M., `Parallel algorithm for the computation of the Hartree-Fock exchange matrix: Gas phase and periodic parallel ONX', J. Chem. Phys., 125, 104110 (2006)
+
+\item Tymczak, CJ., Weber, VT., Schwegler, E., Challacombe, M., `Linear scaling computation of the Fock matrix. VIII. Periodic boundaries for exact exchange at the Gamma point', J. Chem. Phys., 122, 124105 (2005)
+
+\item Schwegler, E., Challacombe, M., `Linear scaling computation of the Fock matrix. IV. Multipole accelerated formation of the exchange matrix', J. Chem. Phys., 111, 6223 (1999)
+
+\item Schwegler, E., Challacombe, M., `Linear scaling computation of the Hartree-Fock exchange matrix', J. Chem. Phys., 105, 2726 (1996)
+
+\item M. Causà, R. Dovesi, R. Orlando, C. Pisani and V.R. Saunders, `Treatment of the exchange interactions in Hartree-Fock LCAO calculation of periodic systems.', J. Phys. Chem. 92, 909-913 (1988)
+\end{itemize}
+
+\subsection{Symmetry}
+
+\begin{itemize}
+\item C.M. Zicovich-Wilson and R. Dovesi, `On the use of Symmetry Adapted Crystalline Orbitals in SCF-LCAO periodic calculations. I. The construction of the Symmetrized Orbitals.', Int. J. Quantum Chem. 67, 299-309 (1998)
+
+\item C.M. Zicovich-Wilson and R. Dovesi, `On the use of Symmetry Adapted Crystalline Orbitals in SCF-LCAO periodic calculations. II. Implementation of the Self-Consistent-Field scheme and examples.', Int. J. Quantum Chem. 67, 309-320 (1998)
+
+\item R. Dovesi, F. Pascale and C. M. Zicovich-Wilson, `The ab initio calculation of the vibrational spectrum of crystalline compounds; the role of symmetry and related computational aspects. In: Beyond Standard Quantum Chemistry: Applications from Gas to Condensed Phases, pp. 117-138;  R Hernández-Lamoneda (Editor) Transworld Research Network, Trivandrum, Kerala, India (2007); ISBN: 978-81-7895-293-2
+\end{itemize}
+
+\subsection{Self-consistent field}
+\begin{itemize}
+\item VandeVondele, J., Hutter, J., `An efficient orbital transformation method for electronic structure calculations', J. Chem. Phys., 118, 4365, (2003)
+
+\item Challacombe, M., ` A general parallel sparse-blocked matrix multiply for linear scaling SCF theory', Comput. Phys. Comm., 128, 93, (2000)
+
+\item Challacombe, M., `A simplified density matrix minimization for linear scaling self-consistent field theory', J. Chem. Phys., 110, 2332 (1999)
+\end{itemize}
+
+\end{document}

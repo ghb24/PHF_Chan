@@ -1,0 +1,91 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[latin1]{inputenc}
+\usepackage[english]{babel}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage[left=2cm,right=2cm,top=2cm,bottom=2cm]{geometry}
+\author{Sebastian Wouters}
+\title{Why do we need the Ewald stuff in Waffel 0.1?}
+\begin{document}
+\maketitle
+\section{Intro}
+We need to solve the HF equations
+\begin{eqnarray}
+\hat{f} \psi_i(\vec{r}) & = & \left( - \frac{1}{2} \vec{\nabla}^2 - \sum\limits_{A} \frac{Z_A}{\mid \vec{r}_A - \vec{r} \mid} + \int \frac{\rho(\vec{r}')}{\mid \vec{r} - \vec{r}' \mid} d\vec{r}' \right) \psi_i(\vec{r}) - \sum\limits_j \int d\vec{r}' \left( \frac{\psi_j^*(\vec{r}') \psi_i(\vec{r}')}{\mid \vec{r}' - \vec{r} \mid} \right) \delta_{s^z_i,s^z_j} \psi_j(\vec{r})\nonumber\\
+& = & \epsilon_i \psi_i(\vec{r})
+\end{eqnarray}
+It would be convenient to treat the direct electron-electron and electron-nuclear terms separately. We can do that by defining
+\begin{eqnarray}
+\tilde{\rho}_N(\vec{r}) & = & - \sum\limits_A Z_A \delta(\vec{r} - \vec{r}_A) + \frac{N}{\Omega} \\
+\tilde{\rho}_e(\vec{r}) & = & \rho(\vec{r}) - \frac{N}{\Omega} \label{hhh}
+\end{eqnarray}
+where $\Omega$ is the size of the supercell and $\sum\limits_{\alpha} Z_{\alpha} = N$ the number of electrons in it. The total charge density is not changed by these simultaneous shifts. The shifts yield the same Fock operator and global charge distribution in space, but allow to handle the direct electron-electron term by FT and the electron-nuclear term by an Ewald summation.
+
+\section{Direct electron-electron term}
+The Poisson equation
+\begin{equation}
+\vec{\nabla}^2 \phi(\vec{r}) = - \tilde{\rho}_e(\vec{r})
+\end{equation}
+has solution
+\begin{equation}
+4 \pi \phi(\vec{r}) = \int \frac{\tilde{\rho}_e(\vec{r}')}{\mid \vec{r} - \vec{r}' \mid} d\vec{r}'
+\end{equation}
+Fourier transforming the Poisson equation yields
+\begin{equation}
+\vec{k}^2 \phi(\vec{k}) = \tilde{\rho}_e(\vec{k})
+\end{equation}
+This can be easily solved if the $\vec{k} = 0$ component of $\tilde{\rho}_e$ drops out, which we have ensured by Eq. \eqref{hhh}.
+
+\section{The electron-nuclear term}
+\begin{equation}
+\int \frac{\tilde{\rho}_N(\vec{r}')}{\mid \vec{r} - \vec{r}' \mid} d\vec{r}' \label{gjgj}
+\end{equation}
+can be split up into
+\begin{equation}
+\int \frac{\tilde{\rho}_N(\vec{r}') \text{erf}\left( \frac{\sqrt{\eta}}{2} \mid \vec{r} - \vec{r}' \mid \right)}{\mid \vec{r} - \vec{r}' \mid} d\vec{r}' + \int \frac{\tilde{\rho}_N(\vec{r}') \text{erfc}\left( \frac{\sqrt{\eta}}{2} \mid \vec{r} - \vec{r}' \mid \right)}{\mid \vec{r} - \vec{r}' \mid} d\vec{r}'
+\end{equation}
+The complementary error function decays exponentially fast for increasing arguments, so this integral/summation can be easily done in real space. The error function part contains the long-range tail of $\frac{1}{x}$, whereas its divergence at $x=0$ is completely contained in the part with the complementary error function. The erf part can hence be dealt with in reciprocal space.
+\subsection{erfc}
+This part is equal to
+\begin{equation}
+- \sum\limits_A Z_A \frac{\text{erfc}\left( \frac{\sqrt{\eta}}{2} \mid \vec{r} - \vec{r}_A \mid \right)}{\mid \vec{r} - \vec{r}_A \mid} + \frac{N}{\Omega} \int  \frac{\text{erfc}\left( \frac{\sqrt{\eta}}{2} \mid \vec{r} - \vec{r}' \mid \right)}{\mid \vec{r} - \vec{r}' \mid} d\vec{r}'
+\end{equation}
+The nuclear part can be rapidly truncated as the complementary error function decays exponentially with distance. The background part can be treated analytically by shifting the origin, and introducing spherical coordinates. It yields
+\begin{equation}
+\frac{4 \pi N}{\Omega \eta}
+\end{equation}
+\subsection{erf}
+This part is equal to
+\begin{equation}
+\int \left[ - \sum\limits_{\alpha \mathbf{T}} Z_{\alpha} \delta(\vec{r}' - (\vec{r}_{\alpha} + \mathbf{T})) + \frac{N}{\Omega} \right]  \frac{\text{erf}\left( \frac{\sqrt{\eta}}{2} \mid \vec{r} - \vec{r}' \mid \right)}{\mid \vec{r} - \vec{r}' \mid} d\vec{r}'
+\end{equation}
+where the summation over $A$ is split into the sum $\alpha$ over the charges in one unit cell and the sum $\mathbf{T}$ over the different unit cells. With
+\begin{equation}
+\sum\limits_{\mathbf{T}} \delta(\vec{r} - \mathbf{T}) = \frac{1}{\Omega} \sum\limits_{\mathbf{G}} e^{i \mathbf{G} . \vec{r}}
+\end{equation}
+with $\mathbf{G}$ the reciprocal lattice vectors, the expression reduces to
+\begin{equation}
+-\frac{1}{\Omega} \sum\limits_{\alpha} Z_{\alpha} \sum\limits_{\mathbf{G} \neq 0} \int e^{i \mathbf{G}.(\vec{r}' - \vec{r}_{\alpha})} \frac{\text{erf}\left( \frac{\sqrt{\eta}}{2} \mid \vec{r} - \vec{r}' \mid \right)}{\mid \vec{r} - \vec{r}' \mid} d\vec{r}'
+\end{equation}
+The integral can be dealt with analytically, yielding:
+\begin{equation}
+- \frac{4 \pi}{\Omega} \sum\limits_{\alpha} Z_{\alpha} \sum\limits_{\mathbf{G} \neq 0} \frac{e^{i \mathbf{G}.(\vec{r} - \vec{r}_{\alpha})} e^{-G^2/\eta^2}}{G^2}
+\end{equation}
+\subsection{Final expression for the electron-nuclear term}
+\begin{equation}
+\int \frac{\tilde{\rho}_N(\vec{r}')}{\mid \vec{r} - \vec{r}' \mid} d\vec{r}' = - \sum\limits_A Z_A \frac{\text{erfc}\left( \frac{\sqrt{\eta}}{2} \mid \vec{r} - \vec{r}_A \mid \right)}{\mid \vec{r} - \vec{r}_A \mid} + \frac{4 \pi N}{\Omega \eta} - \frac{4 \pi}{\Omega} \sum\limits_{\alpha} Z_{\alpha} \sum\limits_{\mathbf{G} \neq 0} \frac{e^{i \mathbf{G}.(\vec{r} - \vec{r}_{\alpha})} e^{-G^2/\eta^2}}{G^2} \label{gjgj2}
+\end{equation}
+\subsection{Input, output, program comments}
+\begin{itemize}
+\item We will work in C++.
+\item The one-electron integral routine calls the Ewald e-N subroutine. Needs to be done only once at the start of the program.
+\item Input 1: The supercell (skew) basis vectors $(\vec{a},\vec{b},\vec{c})$
+\item Input 2: The reciprocal (skew) basis vectors $(\vec{G}_a,\vec{G}_b,\vec{G}_c)$. We use the convention $\vec{G}_a . \vec{b} = 2 \pi \delta_{a,b}$.
+\item Input 3: A list of locations $(x,y,z)$ for calculating Eq. \eqref{gjgj}, for example with the convention $\vec{r} = x \vec{a} + y \vec{b} + z \vec{c}$.
+\item Input 4: A list of locations $(x_i,y_i,z_i)$ and charges $Z_i$ for the nuclei in the supercell.
+\item Output: A list of the same length as the list $(x,y,z)$, containing the values Eq. \eqref{gjgj2} at those locations.
+\end{itemize}
+\section{Question}
+Do we also provide the constant nuclear-nuclear term (of course also regularized in the shift sense)?
+\end{document}

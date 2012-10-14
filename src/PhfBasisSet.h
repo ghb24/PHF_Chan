@@ -175,6 +175,7 @@ extern "C" {
 
    /// evaluate basis functions (of the entire basis) on a grid.
    ///   \p pOut        Output will be written to pOut[iGridPt + nGridPt * (iComp + nCompSt * iMap)]. Must hold room for nGridPt x nCompSt x nBasisfn entries.
+   ///   \p nCompSt     Derivative component strides: Normally 1 for densities, 4 for densities+gradients. Can be larger.
    ///   \p pCentersOut [iMap]: center index of basis function Map[iMap]. Note: 0-based.
    ///   \p pMap        Output: Indices of basis functions retained.
    ///   \p nMap        Output: number of basis functions retained

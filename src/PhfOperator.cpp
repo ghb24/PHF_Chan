@@ -1,5 +1,5 @@
 #include <ostream>
-#include "CtMatrix.h" // for PrintMatrixGen
+#include "lib/CtMatrix.h" // for PrintMatrixGen
 #include "PhfOperator.h"
 
 template<class FScalar>

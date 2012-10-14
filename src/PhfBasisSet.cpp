@@ -184,8 +184,12 @@ void FD(assign_integral_kernel)(FORTINT &iContext, FORTINT const &iKernel, FORTI
       //       simple to do so by c/p'ing FCoulombKernel and modifying it.
       //       The formulas for Gm(T,rho) are noted at the end
       //       of http://dx.doi.org/10.1039/b605188j
-//       INTKERNEL_Coulomb_LongRange_Erf = 4,  // pParamsF[0]: Screening length
-//       INTKERNEL_Coulomb_ShortRange_Erfc = 5 // pParamsF[0]: Screening length
+      case INTKERNEL_Coulomb_LongRange_Erf:
+         ic->pKernel = new aic::FErfCoulombKernel(pParamsF[0]);
+         break;
+      case INTKERNEL_Coulomb_ShortRange_Erfc:
+         ic->pKernel = new aic::FErfcCoulombKernel(pParamsF[0]);
+         break;
       default:
          throw std::runtime_error("integral kernel not recognized.");
    }

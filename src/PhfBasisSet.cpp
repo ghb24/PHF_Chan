@@ -349,8 +349,17 @@ void FD(eval_basis_fn_on_grid)(double *pOut, FORTINT const &nCompSt,
 }
 
 
+//    double const
+//       // just a random large number. Use this for setting up basis sets of multipoles.
+//       fPointMultipoleExponent = 1.84391e20;
 
 
+void FD(eval_basis_int2e_contract_point_charges)(double *pOut, FORTINT *Strides, double const &Factor,
+   FBasisSet const &BasisA, FBasisSet const &BasisB,
+   double const *pCoeffC, FVector3 const *pCentersC, size_t nCentersC, FORTINT &iContext)
+{
+   assert(0);
+}
 
 
 

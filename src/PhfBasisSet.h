@@ -173,8 +173,42 @@ extern "C" {
    void FD(eval_basis_int1e)(double *pOut, FORTINT *Strides, double const &Factor,
       FBasisSet const &BasisA, FBasisSet const &BasisB, FORTINT &iContext);
 
+   /// evaluate contracted 2-electron integrals \sum_c (ab|krn|c) pCoeffC[c],
+   /// where a/b are the shell-group BasisA[iGrpA]/BasisB[iGrpB], and
+   /// c runs over the entire basis C. The contraction vector pCoeffC[iFnC]
+   /// gives the coefficients of the basis functions in C.
+   ///
+   /// Note: Can be used in conjunction with with MakePointCharge basis on C
+   /// for short-range n/e integrals. In that case pCoeffC are the point charges.
+   ///   \p pOut      Output will be written to pOut[iFnA*Strides[0] + iFnB*Strides[1]]
+   ///   \p Strides   row/column strides of output data. [0] is for A, [1] is for B
+   ///   \p Factor    prefactor: integral data will be multiplied by this.
+   ///   \p pCoeffC   contraction coefficients of basis functions in C.
+   ///   \p iContext  Integral context defining the parameters (kernel, thresholds, etc).
+   ///                \see CreateIntegralContext
+   void FD(eval_group_int2e_contract_v)(double *pOut, FORTINT *Strides, double const &Factor,
+      FORTINT const &iGrpA, FBasisSet const &BasisA,
+      FORTINT const &iGrpB, FBasisSet const &BasisB,
+      double const *pCoeffC, FBasisSet const &BasisC, FORTINT &iContext);
+
+   /// Same as eval_group_int2e_contract_v, but for the entire basis.
+   void FD(eval_basis_int2e_contract_v)(double *pOut, FORTINT *Strides, double const &Factor,
+      FBasisSet const &BasisA, FBasisSet const &BasisB,
+      double const *pCoeffC, FBasisSet const &BasisC, FORTINT &iContext);
+
+   /// evaluate contracted 2-electron integrals \sum_c (ab|krn|c) pCoeffC[c],
+   /// where c runs over the point charges specified by pCentersC
+   ///
+   /// Note: BasisB will be periodically symmetrized with the super-cell translation
+   /// length, but the centers on C will be taken as they are. Therefore, in a short-range
+   /// case, all images to consider must be explicitly unpacked and supplied.
+   void FD(eval_basis_int2e_contract_point_charges)(double *pOut, FORTINT *Strides, double const &Factor,
+      FBasisSet const &BasisA, FBasisSet const &BasisB,
+      double const *pCoeffC, FVector3 const *pCentersC, size_t nCentersC, FORTINT &iContext);
+
    /// evaluate basis functions (of the entire basis) on a grid.
    ///   \p pOut        Output will be written to pOut[iGridPt + nGridPt * (iComp + nCompSt * iMap)]. Must hold room for nGridPt x nCompSt x nBasisfn entries.
+   ///   \p nCompSt     Derivative component strides: Normally 1 for densities, 4 for densities+gradients. Can be larger.
    ///   \p pCentersOut [iMap]: center index of basis function Map[iMap]. Note: 0-based.
    ///   \p pMap        Output: Indices of basis functions retained.
    ///   \p nMap        Output: number of basis functions retained

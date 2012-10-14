@@ -19,6 +19,7 @@ module CvsFDatatypes
         integer :: nExp
         integer :: iExp
         integer :: nCo
+        integer :: iCo
         integer :: l
         integer :: Type
         integer :: iCen
@@ -26,17 +27,17 @@ module CvsFDatatypes
     end type
 
     type :: basis_set_t
-        type(dyn_array_t) :: Groups !This is of type GroupInfo when unpacked
-        type(dyn_array_t) :: Data   !Type real
-        type(dyn_array_t) :: Centers    !Type real(3)
+        type(dyn_array_t) :: Groups ! This is of type GroupInfo when unpacked
+        type(dyn_array_t) :: Data   ! Type real
+        type(dyn_array_t) :: Centers   !Type real(3)
         integer :: nFn
     end type
 
     type :: unit_cell_t
         type(dyn_array_t) :: Coords     !Type real(3)
         type(dyn_array_t) :: Elements   !Type Integer
-        type(dyn_array_t) :: EcpCharges !Type real(dp)
-        type(basis_set_t) :: OrbBasis   
+        type(dyn_array_t) :: EcpCharges !Type Integer
+        type(basis_set_t) :: OrbBasis
         real(dp) :: Volume
     end type
 
@@ -60,7 +61,7 @@ module CvsFDatatypes
         !  Size[0] x Size[1] x Size[2]
         ! grid of super-cells.
         ! Note: Total number of super-cells is SuperCell.Ts.size().
-        integer , dimension(3,3) :: Size
+        integer , dimension(3) :: Size
         ! set of all translation vectors between the first unit-cell
         ! and the other unit-cells in the super-cell (i.e., T x Size unpacked)
         ! Note: The 0-vector (first to first) is included in the set.

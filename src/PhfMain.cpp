@@ -75,6 +75,33 @@ int main(int argc, char *argv[])
       Kinetic.Print(xout, "KINETIC UnitCell x SuperCell");
    }
 
+   if ( 0 ) {
+      // evaluating short-range part of point-charge lattice:
+      FOpMatrix
+         Nuclear_ShortRange(Solid);
+      FORTINT
+         ic = create_integral_context_(0,0, 1e-10),
+         Strides[2] = {1, Nuclear_ShortRange.nRows};
+      double
+         // the omega of  g(r) = erfc(omega r)/r
+         Omega = 5.;
+      TArray<double>
+         PointCharges;
+      TArray<FVector3>
+         PointCenters;
+      // fill up PointCharges and PointCenters with all the nuclear images
+      // within screening range of erfc(omega*r)/r.
+
+      //  [ ... ]
+
+      // evaluate the integrals.
+      assign_integral_kernel_(ic, INTKERNEL_Coulomb_ShortRange_Erfc, 0, &Omega);
+      eval_basis_int2e_contract_point_charges_(&Nuclear_ShortRange[0],
+         Strides, 1.0, Solid.UnitCell.OrbBasis, Solid.SuperCell.OrbBasis,
+         &PointCharges[0], &PointCenters[0], PointCenters.size(), ic);
+      destroy_integral_context_(ic);
+   }
+
    xout << format("wheee!!") << std::endl;
 
    // test call of fortran

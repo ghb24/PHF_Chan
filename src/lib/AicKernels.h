@@ -127,6 +127,33 @@ private:
       *m_pGaussExp;
 };
 
+// erf(omega r)/r  (long-range coulomb)
+struct FErfCoulombKernel : public FIntegralKernel
+{
+   explicit FErfCoulombKernel( double Omega_ ) : m_Omega(Omega_) { InitBoysFnTable(); };
+   char const *GetName() const { return "erf(w r)/r"; } // override
+   virtual uint GetNumComponents() const { return 1; } // override
+   void EvalGm( double *pOut, double rho, double T, uint MaxM, double Prefactor ) const; // override
+   ~FErfCoulombKernel();
+private:
+   double
+      m_Omega;
+};
+
+// erfc(omega r)/r  (short-range coulomb)
+struct FErfcCoulombKernel : public FIntegralKernel
+{
+   explicit FErfcCoulombKernel( double Omega_ ) : m_Omega(Omega_) { InitBoysFnTable(); };
+   char const *GetName() const { return "erfc(w r)/r"; } // override
+   virtual uint GetNumComponents() const { return 1; } // override
+   void EvalGm( double *pOut, double rho, double T, uint MaxM, double Prefactor ) const; // override
+   ~FErfcCoulombKernel();
+private:
+   double
+      m_Omega;
+};
+
+
 // F_{12}/r
 struct FGaussCoulombKernel : public FIntegralKernel
 {

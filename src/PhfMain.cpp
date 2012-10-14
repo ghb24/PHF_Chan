@@ -14,7 +14,7 @@ using boost::format;
 extern "C" {
     void environment_report_();
     void print_unit_cell_(FUnitCell&);
-    void exchangesum_(FLattice&,FUnitCell&); 
+    void exchangesum_(double&,FOpMatrix&,FLattice&,FUnitCell&,FSuperCell&,FOpMatrix&); 
 }
 
 int main(int argc, char *argv[])
@@ -55,6 +55,9 @@ int main(int argc, char *argv[])
    Solid.SuperCell.Init(FVector3i(4,4,4), Solid.Lattice, Solid.UnitCell);
    Solid.UnitCell.OrbBasis.SetPeriodicityVectors(Solid.SuperCell.T);
 
+   // allocate memory for density matrix, exchange matrix and coulomb matrix
+   FOpMatrix Density(Solid), Exchange(Solid), Coulomb(Solid);
+
    if ( 0 ) {
       FOpMatrix
          Overlap(Solid),
@@ -75,9 +78,8 @@ int main(int argc, char *argv[])
    xout << format("wheee!!") << std::endl;
 
    // test call of fortran
-   // print_unit_cell_(Solid.UnitCell);
-
-   exchangesum_(Solid.Lattice,Solid.UnitCell);
+   double ExchangeEnergy;
+   exchangesum_(ExchangeEnergy,Exchange,Solid.Lattice,Solid.UnitCell,Solid.SuperCell,Density);
 
 };
 

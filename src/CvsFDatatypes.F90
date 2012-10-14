@@ -1,12 +1,7 @@
 module CvsFDatatypes
     use iso_c_binding
+    use FortCons, only: dp
     implicit none
-
-    integer, parameter :: sp = selected_real_kind(6,37)
-    integer, parameter :: dp = selected_real_kind(15,307)
-    integer, parameter :: qp = selected_real_kind(33,4931)
-    integer, parameter :: int32 = selected_int_kind(8)
-    integer, parameter :: int64 = selected_int_kind(15)
 
     !This is the fortran array for passing dynamic arrays from C objects
     !pData contains a pointer to the actual array, where nSize is the size of the array
@@ -133,6 +128,12 @@ module CvsFDatatypes
         ! Note: The 0-vector (first to first) is included in the set.
         type(basis_set_t) :: OrbBasis  !Gaussian basis used to expand the MOs
                                        !with centers on the entire supercell
+    end type
+
+    type, bind(c) :: op_matrix_t
+        type(dyn_array_t) :: Data
+        integer :: nRows
+        integer :: nCols
     end type
 
     type, bind(c) :: SolidModel

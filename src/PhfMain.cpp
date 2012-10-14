@@ -13,6 +13,7 @@ using boost::format;
 
 extern "C" {
     void environment_report_();
+    void FD(print_unit_cell)(FUnitCell&);
 }
 
 int main(int argc, char *argv[])
@@ -21,7 +22,7 @@ int main(int argc, char *argv[])
    environment_report_(); 
 
    // load basis set libraries
-   g_BasisSetLibrary.ImportMolproLib("libmol/cp2k-gth.libmol");
+   g_BasisSetLibrary.ImportMolproLib("../libmol/cp2k-gth.libmol");
 
 
    // setup some dummy objects. These things should later be handled
@@ -53,7 +54,7 @@ int main(int argc, char *argv[])
    Solid.SuperCell.Init(FVector3i(4,4,4), Solid.Lattice, Solid.UnitCell);
    Solid.UnitCell.OrbBasis.SetPeriodicityVectors(Solid.SuperCell.T);
 
-   if ( 1 ) {
+   if ( 0 ) {
       FOpMatrix
          Overlap(Solid),
          Kinetic(Solid);
@@ -73,6 +74,7 @@ int main(int argc, char *argv[])
    xout << format("wheee!!") << std::endl;
 
    // test call of fortran
+   FD(print_unit_cell)(Solid.UnitCell);
 
 };
 

@@ -12,6 +12,22 @@ module dummy_module
       integer :: nSize
       integer :: nReserved  ! <- don't touch that.
    end type
+
+   type :: 
+
+   type :: unit_cell_t
+      type(dyn_array_t) :: Coords
+      type(dyn_array_t) :: Elements
+      type(dyn_array_t) :: EcpCharges
+   end type
+
+   contains
+
+   subroutine aa(datastruc)
+      type(unit_cell_t) :: datastruc
+      integer, pointer :: Elements(:)
+      call c_f_pointer(datastruc%Elements%pData, Elements, [datastruc%Elements%nSize])
+
 end module
 
 subroutine dummy_func_1(obj1)

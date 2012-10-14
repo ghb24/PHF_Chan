@@ -1,8 +1,8 @@
 #include <memory>
 #include <stdexcept>
-#include "CxMemoryStack.h"
-#include "AicShells.h"
-#include "AicKernels.h"
+#include "lib/CxMemoryStack.h"
+#include "lib/AicShells.h"
+#include "lib/AicKernels.h"
 #include "PhfBasisSet.h"
 
 FBasisSet::FBasisSet()

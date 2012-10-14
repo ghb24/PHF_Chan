@@ -1,7 +1,7 @@
 #include <sstream>
 #include <stdexcept>
-#include "CtBasisLibrary.h"
-#include "AicShells.h"   // <- that's what the basis library stores.
+#include "lib/CtBasisLibrary.h"
+#include "lib/AicShells.h"   // <- that's what the basis library stores.
 
 #include "PhfSolidDef.h"
 

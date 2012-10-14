@@ -104,7 +104,8 @@ void FSuperCell::Init(FVector3i const &Size_, FLattice const &Lattice, FUnitCell
    for ( uint i = 0; i < 3; ++ i )
       T[i] = (double)Size[i] * Lattice.T[i];
    // ...and unit-cell translation vectors.
-   Ts.resize(Size[0] * Size[1] * Size[2]);
+   Ts.clear();
+   Ts.reserve(Size[0] * Size[1] * Size[2]);
    for ( uint iz = 0; iz < Size[2]; ++ iz )
       for ( uint iy = 0; iy < Size[1]; ++ iy )
          for ( uint ix = 0; ix < Size[0]; ++ ix )

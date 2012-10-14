@@ -140,13 +140,18 @@ extern "C" {
    ///   \p nWork     Size of work space, in doubles. If <= 0, pWork is not used but memory is allocated form the global heap.
    ///   \p Thr       Threshold for integral/basis function evaluation
    FORTINT FD(create_integral_context)(void *pWork, FORTINT const &nWork, double const &Thr);
+//    #define CreateIntegralContext FD(create_integral_context)
+
    /// initialize an integral kernel for evaluating integrals of a given type.
    ///   \p iKernel   INTKERNEL_* constant defining the kernel
    ///   \p pParamsI  Integer parameters to the kernel (use depends on kernel. Can be 0 if unused)
    ///   \p pParamsF  Float parameters to the kernel (use depends on kernel, can be 0 if unused)
    void FD(assign_integral_kernel)(FORTINT &iContext, FORTINT const &iKernel, FORTINT *pParamsI, double *pParamsF);
+//    #define AssignIntegralKernel FD(assign_integral_kernel)
+
    /// deallocate a kernel object.
    void FD(destroy_integral_context)(FORTINT &iContext);
+//    #define DestroyIntegralContext FD(destroy_integral_context)
 
    /// evaluate 1-electron integrals < a|krn|b>. where a is the shell-group BasisA[iGrpA]
    /// and b is the shell-group BasisB[iGrpB].
@@ -179,7 +184,8 @@ extern "C" {
    ///   \p DerivOrder  0: make just densities. 1: make density and d/dx..d/dz, 2: make up to 2nd derivatives.
    ///   \p iContext    Integral context defining the parameters. Threshold is taken from here.
    ///                  \see CreateIntegralContext
-   void FD(eval_basis_bfn_on_grid)(double *pOut, FORTINT const &nCompSt,
+   /// FIXME: doesn't add periodic super-cell images yet!
+   void FD(eval_basis_fn_on_grid)(double *pOut, FORTINT const &nCompSt,
       FORTINT *pCentersOut, FORTINT *pMap, FORTINT &nMap,
       FBasisSet const &Basis, double  (*pGridPt)[3], FORTINT const &nGridPt,
       FORTINT const &DerivOrder, FORTINT &iContext);

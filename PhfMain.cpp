@@ -20,8 +20,8 @@ int main(int argc, char *argv[])
 
    // setup some dummy objects. These things should later be handled
    // by some input/output infrastructure.
-   FScfOptions
-      ScfOptions = {1e-8, 1e-8};
+//    FScfOptions
+//       ScfOptions = {1e-8, 1e-8};
    FSolidModel
       Solid;
 
@@ -44,11 +44,25 @@ int main(int argc, char *argv[])
        "\n";
    Solid.UnitCell.AddAtomsFromXyzData(pUnitCellAtomsXyz, 1.0, DefaultBases);
    Solid.UnitCell.Volume = Solid.Lattice.UnitCellVolume;
-   Solid.SuperCell.Init(FVector3i(5,5,5), Solid.Lattice, Solid.UnitCell);
+   Solid.SuperCell.Init(FVector3i(4,4,4), Solid.Lattice, Solid.UnitCell);
    Solid.UnitCell.OrbBasis.SetPeriodicityVectors(Solid.SuperCell.T);
 
+   if ( 1 ) {
+      FOpMatrix
+         Overlap(Solid),
+         Kinetic(Solid);
+      FORTINT
+         ic = FD(create_integral_context)(0,0, 1e-10),
+         Strides[2] = {1, Overlap.nRows};
+      FD(assign_integral_kernel)(ic, INTKERNEL_Overlap, 0, 0);
+      FD(eval_basis_int1e)(&Overlap[0], Strides, 1.0, Solid.UnitCell.OrbBasis, Solid.SuperCell.OrbBasis, ic);
+      FD(assign_integral_kernel)(ic, INTKERNEL_Kinetic, 0, 0);
+      FD(eval_basis_int1e)(&Kinetic[0], Strides, 1.0, Solid.UnitCell.OrbBasis, Solid.SuperCell.OrbBasis, ic);
+      FD(destroy_integral_context)(ic);
 
-
+      Overlap.Print(xout, "OVERLAP UnitCell x SuperCell");
+      Kinetic.Print(xout, "KINETIC UnitCell x SuperCell");
+   }
 
    xout << format("wheee!!") << std::endl;
 };

@@ -206,7 +206,7 @@ void FScreeningParams::Set(double ThrAB_, FScreenTypeAC TypeAC_, double ThrAC_, 
 void AicAssertFail( char const *pExpr, char const *pFile, int iLine )
 {
    std::stringstream str;
-   str << "ASSERTION FAILED: '%s'";
+   str << "ASSERTION FAILED: '" << pExpr << "'";
    if ( pFile != 0 ) str << " at " << pFile << ":" << iLine;
    throw std::runtime_error(str.str());
 }

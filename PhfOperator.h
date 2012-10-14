@@ -1,7 +1,10 @@
 #ifndef PHF_OPERATOR_H
 #define PHF_OPERATOR_H
 
+#include <iosfwd>
+#include <string>
 #include "PhfTypes.h"
+#include "PhfSolidDef.h"
 
 /// represents the matrix elements of a translationally symmetric 1e operator,
 /// in either a raw basis, or a symmetry adapted basis (same storage format).
@@ -38,10 +41,23 @@
 template<class FScalar>
 struct TOpMatrix
 {
+   TArray<FScalar>
+      Data;
+   FORTINT
+      // == M.UnitCell.OrbBasis.nFn
+      nRows,
+      // == M.SuperCell.OrbBasis.nFn
+      nCols;
 
+   explicit TOpMatrix(FSolidModel const &M);
 
+   void Print(std::ostream &xout, std::string const &Caption);
 
+   FScalar &operator [] (size_t i) { return Data[i]; }
+   FScalar const &operator [] (size_t i) const { return Data[i]; }
+   size_t size() const { return Data.size(); }
 };
+
 typedef TOpMatrix<double>
    FOpMatrix;
 typedef TOpMatrix<complex_double>

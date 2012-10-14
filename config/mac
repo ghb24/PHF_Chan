@@ -13,8 +13,8 @@ module_flag = -J
 
 [dbg]
 cflags = -m64 -g
-fflags = -g -check bounds
+fflags = -g -fbounds-check -fdefault-integer-8
 
 [opt]
 cflags = -m64 -O3
-fflags = -O3
+fflags = -O3 -fdefault-integer-8

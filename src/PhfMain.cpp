@@ -11,11 +11,19 @@ using namespace ct;
 using boost::format;
 
 
+extern "C" {
+    void environment_report_();
+    void print_unit_cell_(FUnitCell&);
+    void exchangesum_(FLattice&,FUnitCell&); 
+}
 
 int main(int argc, char *argv[])
 {
+
+   environment_report_(); 
+
    // load basis set libraries
-   g_BasisSetLibrary.ImportMolproLib("libmol/cp2k-gth.libmol");
+   g_BasisSetLibrary.ImportMolproLib("../libmol/cp2k-gth.libmol");
 
 
    // setup some dummy objects. These things should later be handled
@@ -47,18 +55,18 @@ int main(int argc, char *argv[])
    Solid.SuperCell.Init(FVector3i(4,4,4), Solid.Lattice, Solid.UnitCell);
    Solid.UnitCell.OrbBasis.SetPeriodicityVectors(Solid.SuperCell.T);
 
-   if ( 1 ) {
+   if ( 0 ) {
       FOpMatrix
          Overlap(Solid),
          Kinetic(Solid);
       FORTINT
-         ic = FD(create_integral_context)(0,0, 1e-10),
+         ic = create_integral_context_(0,0, 1e-10),
          Strides[2] = {1, Overlap.nRows};
-      FD(assign_integral_kernel)(ic, INTKERNEL_Overlap, 0, 0);
-      FD(eval_basis_int1e)(&Overlap[0], Strides, 1.0, Solid.UnitCell.OrbBasis, Solid.SuperCell.OrbBasis, ic);
-      FD(assign_integral_kernel)(ic, INTKERNEL_Kinetic, 0, 0);
-      FD(eval_basis_int1e)(&Kinetic[0], Strides, 1.0, Solid.UnitCell.OrbBasis, Solid.SuperCell.OrbBasis, ic);
-      FD(destroy_integral_context)(ic);
+      assign_integral_kernel_(ic, INTKERNEL_Overlap, 0, 0);
+      eval_basis_int1e_(&Overlap[0], Strides, 1.0, Solid.UnitCell.OrbBasis, Solid.SuperCell.OrbBasis, ic);
+      assign_integral_kernel_(ic, INTKERNEL_Kinetic, 0, 0);
+      eval_basis_int1e_(&Kinetic[0], Strides, 1.0, Solid.UnitCell.OrbBasis, Solid.SuperCell.OrbBasis, ic);
+      destroy_integral_context_(ic);
 
       Overlap.Print(xout, "OVERLAP UnitCell x SuperCell");
       Kinetic.Print(xout, "KINETIC UnitCell x SuperCell");
@@ -67,6 +75,9 @@ int main(int argc, char *argv[])
    xout << format("wheee!!") << std::endl;
 
    // test call of fortran
+   // print_unit_cell_(Solid.UnitCell);
+
+   exchangesum_(Solid.Lattice,Solid.UnitCell);
 
 };
 

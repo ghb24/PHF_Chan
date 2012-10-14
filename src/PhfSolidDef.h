@@ -44,7 +44,7 @@ struct FUnitCell
    TArray<FORTINT>
       /// Identifies atom types. E.g., 2 == He
       Elements;
-   TArray<double>
+   TArray<FORTINT>
       /// [i]: number of electrons of atom #i which are absorbed
       /// in its effective core potential/pseudo potential
       EcpCharges;

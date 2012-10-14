@@ -178,7 +178,7 @@ space := $(empty) $(empty)
 VPATH = $(subst $(space),:,$(SRC) $(DEST))
 
 # Create output directories if they don't exist.
-DIRS = $(GDEST) $(TDEST) $(GDEP_DEST) $(EXE) $(LIB)
+DIRS = $(GDEST) $(GDEP_DEST) $(EXE) $(LIB)
 make_dirs := $(foreach outdir, $(DIRS), $(shell test -e $(outdir) || mkdir -p $(outdir)))
 
 #-----
@@ -267,7 +267,7 @@ CDEPEND = $(cppDEPEND_FILES) $(cDEPEND_FILES) $(KcppDEPEND_FILES) $(KcDEPEND_FIL
 
 # Don't delete any intermediate files (e.g. bin/*.x when the goal doesn't
 # include the full path; .F90 files produced from template files).
-.SECONDARY: $(addprefix $(TDEST)/,$(notdir $(basename $(F90TMPSRCFILES)))) $(PROGS) $(PHFLIBS) $(UTILS)
+.SECONDARY: $(PROGS) $(PHFLIBS) $(UTILS)
 
 # Extensions of files to compile.
 .SUFFIXES:
@@ -301,7 +301,7 @@ $(EXE)/phf.$(CONFIG).$(OPT).x: $(OBJECTS_PHF)
 \t$(LD) $(LDFLAGS) -o $@ $(OBJECTS_PHF) $(LIBS)
 
 clean: 
-\trm -f {$(GDEST),$(TDEST)}/* $(EXE)/*.$(CONFIG).$(OPT).x $(LIB)/*.$(CONFIG).$(OPT).a
+\trm -f $(GDEST)/* $(EXE)/*.$(CONFIG).$(OPT).x $(LIB)/*.$(CONFIG).$(OPT).a
 
 cleanall:
 \trm -rf dest lib bin
@@ -395,11 +395,8 @@ $(GDEST)/%%.f: %%.F
 \t$(CPP) $(CPP_BODY) $(GCPPFLAG) $(INCLUDE_PATH)
 
 # c) With an option to generate from template files.
-$(GDEST)/%%.f90: $(TDEST)/%%.F90
+$(GDEST)/%%.f90: 
 \t$(CPP) $(CPP_BODY) $(GCPPFLAG) $(INCLUDE_PATH)
-
-$(TDEST)/%%.F90: %%.F90.template
-\t$(TOOLS)/f90_template.py $< $@
 
 # 2. Compile.
 

@@ -14,7 +14,7 @@ using boost::format;
 extern "C" {
     void environment_report_();
     void print_unit_cell_(FUnitCell&);
-    void exchangesum_(FLattice&,FUnitCell&); 
+    void exchangesum_(double&,FOpMatrix&,FLattice&,FUnitCell&,FSuperCell&,FOpMatrix&); 
 }
 
 int main(int argc, char *argv[])
@@ -55,6 +55,9 @@ int main(int argc, char *argv[])
    Solid.SuperCell.Init(FVector3i(4,4,4), Solid.Lattice, Solid.UnitCell);
    Solid.UnitCell.OrbBasis.SetPeriodicityVectors(Solid.SuperCell.T);
 
+   // allocate memory for density matrix, exchange matrix and coulomb matrix
+   FOpMatrix Density(Solid), Exchange(Solid), Coulomb(Solid);
+
    if ( 0 ) {
       FOpMatrix
          Overlap(Solid),
@@ -72,12 +75,38 @@ int main(int argc, char *argv[])
       Kinetic.Print(xout, "KINETIC UnitCell x SuperCell");
    }
 
+   if ( 0 ) {
+      // evaluating short-range part of point-charge lattice:
+      FOpMatrix
+         Nuclear_ShortRange(Solid);
+      FORTINT
+         ic = create_integral_context_(0,0, 1e-10),
+         Strides[2] = {1, Nuclear_ShortRange.nRows};
+      double
+         // the omega of  g(r) = erfc(omega r)/r
+         Omega = 5.;
+      TArray<double>
+         PointCharges;
+      TArray<FVector3>
+         PointCenters;
+      // fill up PointCharges and PointCenters with all the nuclear images
+      // within screening range of erfc(omega*r)/r.
+
+      //  [ ... ]
+
+      // evaluate the integrals.
+      assign_integral_kernel_(ic, INTKERNEL_Coulomb_ShortRange_Erfc, 0, &Omega);
+      eval_basis_int2e_contract_point_charges_(&Nuclear_ShortRange[0],
+         Strides, 1.0, Solid.UnitCell.OrbBasis, Solid.SuperCell.OrbBasis,
+         &PointCharges[0], &PointCenters[0], PointCenters.size(), ic);
+      destroy_integral_context_(ic);
+   }
+
    xout << format("wheee!!") << std::endl;
 
    // test call of fortran
-   // print_unit_cell_(Solid.UnitCell);
-
-   exchangesum_(Solid.Lattice,Solid.UnitCell);
+   double ExchangeEnergy;
+   exchangesum_(ExchangeEnergy,Exchange,Solid.Lattice,Solid.UnitCell,Solid.SuperCell,Density);
 
 };
 

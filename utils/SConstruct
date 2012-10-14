@@ -2,7 +2,8 @@ import os
 
 # make a list of source files: take everything in the current directory
 # which looks like C++ or Fortran
-FileList = [s for s in os.listdir(".") if os.path.splitext(s)[1] in [".cpp",'.F90','.F']]
+FileList = ["src/"+s for s in os.listdir("src") if os.path.splitext(s)[1] in [".cpp",'.F90','.F']]
+FileList += ["src/lib/"+s for s in os.listdir("src/lib") if os.path.splitext(s)[1] in [".cpp",'.F90','.F']]
 
 # take BLAS/LAPACK library flags from environment variable if present.
 # otherwise, substitute a default
@@ -15,15 +16,15 @@ else:
       avx = ""
    BlasLapack = "-L/opt/intel/composerxe/mkl/lib/intel64 -lmkl_gf_ilp64 -lmkl_sequential -lmkl_core %s -Wl,-rpath,/opt/intel/composerxe/mkl/lib/intel64" % avx
 
-Libs1 = ["boost_program_options"]
+Libs1 = ["boost_program_options",'gfortran']
 
 def MakeTarget(NameOut, ObjDir, Env ):
    Env.VariantDir(ObjDir, '.', duplicate=0)
    return Env.Program(NameOut, [ObjDir + s for s in FileList])
 
-Incl = "-DAIC_LOCAL_INCLUDES "
+Incl = "-I./src/ -Isrc/lib/ -DAIC_LOCAL_INCLUDES -D_VCS_VER=0 -D_CONFIG=0"
 
-FortranFlags = '-fdefault-integer-8 -fdefault-real-8 -fdefault-double-8'
+FortranFlags = '-fdefault-integer-8 -fdefault-real-8 -fdefault-double-8  -D_VCS_VER=0 -D_CONFIG=0'
 FortranFlagsDbg = FortranFlags + " -g -D_DEBUG "
 FortranFlagsOpt = FortranFlags + " -O3 -DNDEBUG "
 

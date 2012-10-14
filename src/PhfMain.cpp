@@ -11,9 +11,15 @@ using namespace ct;
 using boost::format;
 
 
+extern "C" {
+    void environment_report_();
+}
 
 int main(int argc, char *argv[])
 {
+
+   environment_report_(); 
+
    // load basis set libraries
    g_BasisSetLibrary.ImportMolproLib("libmol/cp2k-gth.libmol");
 

@@ -1,0 +1,20 @@
+[main]
+cpp = cpp -P -C -traditional
+cppflags = -D__Linux -DAIC_LOCAL_INCLUDES 
+compiler = GCC-f95-on-LINUX
+fc = gfortran
+f77flags = -m64 -fcray-pointer
+f90flags = -m64 -fcray-pointer -ffree-line-length-none
+cc = g++
+ld = gfortran
+ldflags = -m64
+libs = -framework Accelerate -lstdc++ -lfftw3 -lboost_program_options-mt
+module_flag = -J
+
+[dbg]
+cflags = -m64 -g
+fflags = -g -check bounds
+
+[opt]
+cflags = -m64 -O3
+fflags = -O3

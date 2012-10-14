@@ -1,12 +1,12 @@
 #include <boost/format.hpp>
 
-#include "CtBasisLibrary.h"
+#include "lib/CtBasisLibrary.h"
 
 #include "PhfSolidDef.h"
 #include "PhfBasisSet.h"
 #include "PhfScf.h"
 
-#include "CtIo.h"
+#include "lib/CtIo.h"
 using namespace ct;
 using boost::format;
 
@@ -65,6 +65,9 @@ int main(int argc, char *argv[])
    }
 
    xout << format("wheee!!") << std::endl;
+
+   // test call of fortran
+
 };
 
 

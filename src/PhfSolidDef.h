@@ -35,7 +35,6 @@ typedef std::map<FBasisContext, std::string>
 //    types and by that allow the compiler to re-align their memory
 //    layouts in arbitrary ways (although they might not actually do that)
 
-
 /// defines atoms in the unit-cell and their properties
 struct FUnitCell
 {

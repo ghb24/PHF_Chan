@@ -5,11 +5,11 @@ using boost::format;
 
 #include "PhfBasisSet.h"
 
-#include "AicShells.h"
-#include "AicKernels.h"
-#include "AicGridOps.h"
-#include "CtInt1e.h" // FIXME: remove this (or better: fix it)
-#include "CtIo.h"
+#include "lib/AicShells.h"
+#include "lib/AicKernels.h"
+#include "lib/AicGridOps.h"
+#include "lib/CtInt1e.h" // FIXME: remove this (or better: fix it)
+#include "lib/CtIo.h"
 
 FBasisSet::FBasisSet()
 {

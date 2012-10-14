@@ -16,9 +16,10 @@
  * along with bfint (LICENSE). If not, see http://www.gnu.org/licenses/
  */
 
+#include <memory.h>
+#include <stdlib.h>
 #include <stdexcept>
 #include <stdio.h> // for tmpfile and c-style file handling functions
-#include <memory.h>
 #include <string.h>
 
 #include "CxStorageDevice.h"

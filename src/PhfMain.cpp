@@ -13,7 +13,8 @@ using boost::format;
 
 extern "C" {
     void environment_report_();
-    void FD(print_unit_cell)(FUnitCell&);
+    void print_unit_cell_(FUnitCell&);
+    void exchangesum_(FLattice&,FUnitCell&); 
 }
 
 int main(int argc, char *argv[])
@@ -59,13 +60,13 @@ int main(int argc, char *argv[])
          Overlap(Solid),
          Kinetic(Solid);
       FORTINT
-         ic = FD(create_integral_context)(0,0, 1e-10),
+         ic = create_integral_context_(0,0, 1e-10),
          Strides[2] = {1, Overlap.nRows};
-      FD(assign_integral_kernel)(ic, INTKERNEL_Overlap, 0, 0);
-      FD(eval_basis_int1e)(&Overlap[0], Strides, 1.0, Solid.UnitCell.OrbBasis, Solid.SuperCell.OrbBasis, ic);
-      FD(assign_integral_kernel)(ic, INTKERNEL_Kinetic, 0, 0);
-      FD(eval_basis_int1e)(&Kinetic[0], Strides, 1.0, Solid.UnitCell.OrbBasis, Solid.SuperCell.OrbBasis, ic);
-      FD(destroy_integral_context)(ic);
+      assign_integral_kernel_(ic, INTKERNEL_Overlap, 0, 0);
+      eval_basis_int1e_(&Overlap[0], Strides, 1.0, Solid.UnitCell.OrbBasis, Solid.SuperCell.OrbBasis, ic);
+      assign_integral_kernel_(ic, INTKERNEL_Kinetic, 0, 0);
+      eval_basis_int1e_(&Kinetic[0], Strides, 1.0, Solid.UnitCell.OrbBasis, Solid.SuperCell.OrbBasis, ic);
+      destroy_integral_context_(ic);
 
       Overlap.Print(xout, "OVERLAP UnitCell x SuperCell");
       Kinetic.Print(xout, "KINETIC UnitCell x SuperCell");
@@ -74,7 +75,9 @@ int main(int argc, char *argv[])
    xout << format("wheee!!") << std::endl;
 
    // test call of fortran
-   FD(print_unit_cell)(Solid.UnitCell);
+   // print_unit_cell_(Solid.UnitCell);
+
+   exchangesum_(Solid.Lattice,Solid.UnitCell);
 
 };
 

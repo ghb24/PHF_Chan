@@ -5,6 +5,15 @@
 
 #include "PhfSolidDef.h"
 
+namespace ct {
+   uint ElementNumberFromName( std::string const &Name );
+   std::string ElementNameFromNumber( uint AtomicNumber );
+   std::string tolower(std::string const&);
+}
+uint ElementNumberFromName( std::string const &Name ) { return ct::ElementNumberFromName(Name); }
+std::string ElementNameFromNumber(uint AtomicNumber) { return ct::ElementNameFromNumber(AtomicNumber); }
+
+
 void FUnitCell::AddAtom(FVector3 const &vPos, int Element, FBasisDescs const &DefaultBases)
 {
    // get orbital basis functions from basis library.
@@ -12,7 +21,7 @@ void FUnitCell::AddAtom(FVector3 const &vPos, int Element, FBasisDescs const &De
    std::vector<aic::FGaussShell>
       Shells;
    ct::g_BasisSetLibrary.LoadBasisFunctions(Shells, Element,
-      DefaultBases.find(BASIS_Orbital)->second, vPos, Coords.size());
+      ct::tolower(DefaultBases.find(BASIS_Orbital)->second), vPos, Coords.size());
 
    // convert from AIC shells to our flattened basis format.
    for ( uint i = 0; i < Shells.size(); ++ i )
@@ -23,14 +32,6 @@ void FUnitCell::AddAtom(FVector3 const &vPos, int Element, FBasisDescs const &De
    Elements.push_back(Element);
    EcpCharges.push_back(0);
 }
-
-namespace ct {
-   uint ElementNumberFromName( std::string const &Name );
-   std::string ElementNameFromNumber( uint AtomicNumber );
-   std::string tolower(std::string const&);
-}
-uint ElementNumberFromName( std::string const &Name ) { return ct::ElementNumberFromName(Name); }
-std::string ElementNameFromNumber(uint AtomicNumber) { return ct::ElementNameFromNumber(AtomicNumber); }
 
 
 void FUnitCell::AddAtomsFromXyzData(char const *pFileText, double InputToAuFactor, FBasisDescs const &DefaultBases)

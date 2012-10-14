@@ -33,6 +33,9 @@
 
 namespace aic {
 
+const uint
+   MaxJ = 40;
+
 uint FIntegralKernel::GetNumComponents() const
 {
    return 1;
@@ -41,8 +44,35 @@ uint FIntegralKernel::GetNumComponents() const
 
 void FCoulombKernel::EvalGm( double *pOut, double rho, double T, uint MaxM, double Prefactor ) const
 {
-   BoysFn( pOut, MaxM, T, (2 * M_PI) * Prefactor/rho );
+   BoysFn( pOut, MaxM, T, (2*M_PI)*Prefactor/rho );
 }
+
+static void EvalErfCoulombGm(double *pOut, double rho, double T, uint MaxM, double Prefactor, double Omega)
+{
+   if ( MaxM != 0 )
+      assert_rt("!FIXME: implement erf screened coulomb with higher angular momenta.");
+   // dx.doi.org/10.1039/b605188j eq.52, 2nd term.
+   double f = Omega/std::sqrt(Omega*Omega + rho);
+   BoysFn( pOut, MaxM, f*f*T, f*Prefactor );
+};
+
+void FErfCoulombKernel::EvalGm( double *pOut, double rho, double T, uint MaxM, double Prefactor ) const
+{
+   EvalErfCoulombGm(pOut, rho, T, MaxM, (2*M_PI)*Prefactor/rho, m_Omega);
+};
+
+void FErfcCoulombKernel::EvalGm( double *pOut, double rho, double T, uint MaxM, double Prefactor ) const
+{
+   // form regular coulomb kernel and subtract the long-range kernel.
+   double
+      Fm[MaxJ],
+      PrefactorFm = (2 * M_PI) * Prefactor/rho;
+   BoysFn( &Fm[0], MaxM, T, PrefactorFm );
+   EvalErfCoulombGm(pOut, rho, T, MaxM, PrefactorFm, m_Omega);
+   for ( uint i = 0; i <= MaxM; ++ i )
+      pOut[i] -= Fm[i];
+};
+
 
 
 void FOverlapKernel::EvalGm( double *pOut, double rho, double T, uint MaxM, double Prefactor ) const
@@ -59,9 +89,6 @@ void FOverlapKernel::EvalGm( double *pOut, double rho, double T, uint MaxM, doub
       pOut[i] = pOut[i-1]; // (-d/dT)^n G(0). Note that T = rho |P-Q|^2 includes the rho!
 }
 
-
-const uint
-   MaxJ = 40;
 
 // extern "C" {
 // void gmgausskernel_(double const *Omega, double const *Coeff, long const &nExp, double const &rho, long const &MaxM, double const &T, double *Out, long const &iStride, double const &Prefactor);
@@ -358,6 +385,8 @@ FOverlapKernel::~FOverlapKernel() {}
 FGaussKernel::~FGaussKernel() {}
 FGaussCoulombKernel::~FGaussCoulombKernel() {}
 FGaussKineticKernel::~FGaussKineticKernel() {}
+FErfCoulombKernel::~FErfCoulombKernel() {}
+FErfcCoulombKernel::~FErfcCoulombKernel() {}
 
 
 } // namespace aic

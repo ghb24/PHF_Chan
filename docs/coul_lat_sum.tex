@@ -1,0 +1,272 @@
+\documentclass{article}
+\usepackage{amsmath}
+\usepackage{verbatim}
+%\usepackage{listings}
+
+\begin{document}
+\title{Coulomb lattice summation}
+\author{}
+\maketitle
+
+We use Coulomb lattice summation to calculate the matrix elements of the
+modified potential $\tilde{V}$
+\begin{align}
+  \tilde{V}_{\mu\nu}^{0J}
+  &=\langle \mu^0|\tilde{V}|\nu^J\rangle
+  =\int \mu^0(\mathbf{r}) \tilde{V}(\mathbf{r}) \nu^J(\mathbf{r}) d\mathbf{r}^3
+  \\
+  \tilde{V}(\mathbf{r})
+  &=\int \frac{\tilde{\rho}(\mathbf{r}')}{|\mathbf{r}-\mathbf{r}'|}
+  d{\mathbf{r}'}^3
+  \label{}
+\end{align}
+where the superscripts $0$, $J$ of $\mu^0$ and $\nu^J$ labels the indices of
+cells, $\nu^J$ means the $\nu$-th AO of $J$-th cell.
+Therefore the matrix representation of $V$ is an array with 
+$n_\text{AO} \times n_\text{AO} \times n_\text{UnitCells}$ elements.
+$\tilde{V}$ is based on the screened electron density $\tilde{\rho}(\mathbf{r})$
+which is the difference between the electron density $\rho(\mathbf{r})$ and
+the averaged density $\rho_0$
+\begin{align}
+  &\tilde{\rho}(\mathbf{r})
+  =\rho(\mathbf{r}) - \rho_0
+  \\
+  &\int_{\mathbf{r}\in C} \rho(\mathbf{r}) d\mathbf{r}^3 = N
+  \\
+  &\rho_0 = \frac{N}{\Omega},\quad
+  \int_{\mathbf{r}\in C} \tilde{\rho}(\mathbf{r}) d\mathbf{r}^3 = 0
+  \label{}
+\end{align}
+where the integral region $C$ is constrained to a unit cell,
+$\Omega$ is the volume of a unit cell.
+
+\section{Formulas}
+Basically, the algorithm contains the following steps:
+\begin{itemize}
+  \item Calculate the screened density $\tilde{\rho}(\mathbf{r})$ at each mesh
+    grid of real space;
+  \item Use FFT to transform $\tilde{\rho}(\mathbf{r})$ to its representation
+    in $\mathbf{k}$-space $\tilde{\rho}(\mathbf{k})$;
+  \item Solve the Poisson equation in $\mathbf{k}$-space and get the
+    $\mathbf{k}$-space potential $\tilde{V}(\mathbf{k})$;
+  \item Back transform $\tilde{V}(\mathbf{k})$ to the real space
+    representation $\tilde{V}(\mathbf{r})$;
+  \item Calculate the matrix elements $V_{\mu\nu}^{0J}$ numerically in terms
+    of the real space mesh grids.
+\end{itemize}
+
+The screened density in the real space reads
+\begin{align}
+  \tilde{\rho}(\mathbf{r}) = \sum_{\mu \nu IJ}D_{\mu\nu}^{IJ}
+  \mu^{I}(\mathbf{r})\nu^{J}(\mathbf{r}) - \rho_0
+  \label{eq:rho:r}
+\end{align}
+The superscripts $I$ and $J$ indicates the indices of cells.
+The density matrix $D$ has the translation symmetry
+\begin{equation}
+  D_{\mu\nu}^{IJ} = D_{\mu\nu}^{0,J-I}
+  \label{}
+\end{equation}
+where the superscripts $J-I$ means the cell which corresponds to the lattice
+vector pointing from $I$-th cell to $J$-th cell
+\begin{equation}
+  \mathbf{R}^{J-I} = \mathbf{R}^J - \mathbf{R}^I
+  \label{}
+\end{equation}
+The periodic feature basis allows us to transform the basis of $I$-th cell to
+the basis of $0$-th cell
+\begin{equation}
+  \mu^I(\mathbf{r}) = \mu^0(\mathbf{r}-\mathbf{R}^I)
+  \label{}
+\end{equation}
+After considering the periodic condition and the translation symmetry,
+we can rewrite the expression of density Eq. \eqref{eq:rho:r} as
+\begin{align}
+  \tilde{\rho}(\mathbf{r})
+  &=\sum_{\mu\nu IJ}D_{\mu\nu}^{I,I+J}
+  \mu^I(\mathbf{r})\nu^{I+J}(\mathbf{r}) - \rho_0
+  =\sum_{I} \tilde{\rho}^I(\mathbf{r})
+  \label{eq:rho:div} \\
+  \tilde{\rho}^I(\mathbf{r})
+  &=\sum_{\mu\nu J}D_{\mu\nu}^{0J}
+  \mu^I(\mathbf{r})\nu^{I+J}(\mathbf{r}) - \rho_0 \notag\\
+  &=\sum_{\mu\nu J}D_{\mu\nu}^{0J}
+  \mu^0(\mathbf{r}-\mathbf{R}^I)\nu^0(\mathbf{r}-\mathbf{R}^{I+J}) - \rho_0
+  \label{eq:rho:ra}
+\end{align}
+$D_{\mu\nu}^{0J}$ yields a density matrix with
+$n_\text{AO} \times n_\text{AO} \times n_\text{UnitCells}$ elements.
+Eq. \eqref{eq:rho:div} decomposes the total density into the individual
+cellular contributions.
+Every single cell $\tilde{\rho}^I(\mathbf{r})$ contributes to the density
+distribution over the whole space.
+Due to the periodic condition, 
+we have the same density distribution for each single cell.
+So their contributions to the total density can be refined to the contribution
+of $0$-th cell
+\begin{align}
+  \tilde{\rho}(\mathbf{r})
+  &=\sum_{I}\tilde{\rho}^I(\mathbf{r})
+  = \sum_{I}\tilde{\rho}^0(\mathbf{r}-\mathbf{R}^I)
+  \label{eq:rho:r0} \\
+  \tilde{\rho}^0(\mathbf{r})
+  &=\sum_{\mu\nu J}D_{\mu\nu}^{0J}
+  \mu^0(\mathbf{r})\nu^0(\mathbf{r}-\mathbf{R}^{J}) - \rho_0
+\end{align}
+
+The FFT of $\tilde{\rho}(\mathbf{k})$ in the whole real space reads
+\begin{align}
+  \tilde{\rho}(\mathbf{k})
+  =\int d\mathbf{r}^3 \tilde{\rho}(\mathbf{r}) e^{-i\mathbf{k}\cdot\mathbf{r}}
+  =\sum_{\mathbf{r}} \tilde{\rho}(\mathbf{r})
+  e^{-i\mathbf{k}\cdot \mathbf{r}}
+  =\sum_{\mathbf{r} I} \tilde{\rho}^I(\mathbf{r})
+  e^{-i\mathbf{k}\cdot \mathbf{r}}
+  \label{}
+\end{align}
+The subscription $\mathbf{r}$ of $\sum$ is the index of a mesh grid in
+the real space.  It indicates that the integral are calculated numerically in
+terms of the mesh grids.
+The summation was taken over every mesh grid of the whole space.
+Due to the periodic condition,
+if the density distribution of one cell was calculated,
+we can know the values in all the other cells.
+Therefore, we can confine the FFT in whole space to the FFT in a finite space,
+say the volume of one cell,
+\begin{align}
+  \tilde{\rho}(\mathbf{k})
+  =\int_{\mathbf{r}\in C} d\mathbf{r}^3
+  \tilde{\rho}(\mathbf{r}) e^{-i\mathbf{k}\cdot\mathbf{r}}
+  =\sum_{\mathbf{r}\in C}
+  \tilde{\rho}(\mathbf{r}) e^{-i\mathbf{k}\cdot \mathbf{r}}
+  \label{}
+\end{align}
+
+The Poisson equation in real space reads
+\begin{equation}
+  \nabla^2 \tilde{V}(\mathbf{r}) = 4\pi \tilde{\rho}(\mathbf{r})
+  \label{eq:poisson}
+\end{equation}
+Solving the Poisson equation in $\mathbf{k}$-space leads to
+the $\mathbf{k}$-space representation of the potential
+\begin{equation}
+  \tilde{V}(\mathbf{k})=\frac{4\pi\tilde{\rho}(\mathbf{k})}{k^2}
+  \label{}
+\end{equation}
+Carrying out the inverse FFT, we obtain the real space solution of the Poisson
+equation \eqref{eq:poisson}
+\begin{align}
+  \tilde{V}(\mathbf{r})
+  =\frac{1}{\Omega}\int_{\mathbf{k}\in C} d\mathbf{k}^3
+  \tilde{V}(\mathbf{k}) e^{i\mathbf{k}\cdot\mathbf{r}}
+  =\frac{1}{n_xn_yn_z}\sum_{\mathbf{k}\in C}
+  \Phi(\mathbf{k}) e^{i\mathbf{k}\cdot \mathbf{r}}
+  \label{eq:v:real}
+\end{align}
+where $n_x,n_y,n_z$ are the number of mesh grids along the Cartesian axes in
+one cell.  We have already employed the 3D discrete Fourier transform (DFT)
+and its inverse counterpart in the above equations
+\begin{align}
+  \tilde{\rho}(\mathbf{k}_x,\mathbf{k}_y,\mathbf{k}_z)
+  &=\sum_{x=0}^{n_x-1} \sum_{y=0}^{n_y-1} \sum_{z=0}^{n_z-1}
+  \tilde{\rho}(\mathbf{r}_x,\mathbf{r}_y,\mathbf{r}_z)
+  \exp\left\{-2\pi i \mathbf{k}\cdot\mathbf{r}\right\},
+  %\notag\\
+  %&\quad \mathbf{k}_x \in [0,n_x-1],
+  %\mathbf{k}_y=[0,n_y-1],\mathbf{k}_z \in 
+  \\
+  \tilde{\rho}(\mathbf{r}_x,\mathbf{r}_y,\mathbf{r}_z)
+  &=\frac{1}{n_xn_yn_z}\sum_{x=0}^{n_x-1}
+  \sum_{y=0}^{n_y-1} \sum_{z=0}^{n_z-1}
+  \tilde{\rho}(\mathbf{k}_x,\mathbf{k}_y,\mathbf{k}_z)
+  \exp\left\{2\pi i \mathbf{k}\cdot \mathbf{r}\right\}
+  \label{}
+\end{align}
+Eq. \eqref{eq:v:real} gives the real space potential of one cell.
+Using the translation symmetry, we can obtain the value of
+$\tilde{V}(\mathbf{r})$ in the remaining cells
+%\begin{equation}
+%  \tilde{V}(\mathbf{r}) = \tilde{V}(\mathbf{r}-\mathbf{R}^I)
+%  \label{}
+%\end{equation}
+\begin{equation}
+  \tilde{V}(\mathbf{r}\in I) = \tilde{V}(\mathbf{r}-\mathbf{R}^I)
+  \label{}
+\end{equation}
+Based on the periodic feature of the basis function and the potential, we
+can derive the expression of $\tilde{V}_{\mu\nu}^{0J}$
+\begin{align}
+  V_{\mu\nu}^{0J}
+  &=\sum_{\mathbf{r}} \mu^0(\mathbf{r})\tilde{V}(\mathbf{r})\nu^J(\mathbf{r})
+  \\
+  &=\sum_{I}\sum_{\mathbf{r}\in I} \mu^0(\mathbf{r})
+  \tilde{V}(\mathbf{r} - \mathbf{R}^I)\nu^0(\mathbf{r}-\mathbf{R}^J)
+  \\
+  &=\sum_{I}\sum_{\mathbf{r}\in 0} \mu^0(\mathbf{r}+\mathbf{R}^I)
+  \tilde{V}(\mathbf{r})\nu^0(\mathbf{r} + \mathbf{R}^{I-J})
+  \label{eq:v:r0}
+\end{align}
+
+In the above equations, the summation limits of AO indices $\mu,\nu,\dots$,
+cell indices $I,J,\dots$, and mesh grid indices $\mathbf{r}$ which correspond
+to the electron coordinates are not yet determined.
+The indices $\mu$ and $\nu$ are always limited to the number of AOs in one cell.
+In principle, the cell indices $I$ should run over all unit cells in a
+crystal.  The actual series of indices $I$ can always be truncated.
+When we use a super cell to mimic the crystal,
+we only loop over all the unit cells in the given super cell.
+(??May need to shift the farthest cell $\mathbf{R}^I-\mathbf{R}^{N_{x,y,z}}$,
+$N_{x,y,z}$ is the number of cells along one Cartesian axis in the super cell)
+In Eq. \eqref{eq:rho:r0} and \eqref{eq:v:r0},
+we constrain the electron coordinate indices $\mathbf{r}$ in the $0$-th cell.
+The range of $\mathbf{r}$ thus go from 0 to the number of mesh grids in one
+cell which is
+\begin{equation}
+  n = n_x n_y n_z
+  \label{}
+\end{equation}
+
+
+\section{Programming model}
+We set up a class ?\verb$gird_3d$ to store the
+grid informations. It includes the
+\begin{itemize}
+  \item the coordinates of mesh grids in one cell
+  \item ??the value of basis at a given grid
+\end{itemize}
+
+\subsection{API functions}
+\begin{itemize}
+  \item
+\begin{verbatim}
+void coul_matrix(lattice_info, unit_cell_info, basis_info,
+        const double *den_mat, double *coul_mat);
+\end{verbatim}
+\begin{itemize}
+  \item main function to generate the Coulomb matrix.
+  \item Input: lattice info (lattice vector, electron number, ...), basis
+    info., density matrix with dims nAO $\times$ nAO $\times$ nUnitCells
+  \item Output: double array with dims nAO $\times$ nAO $\times$ nUnitCells
+\end{itemize}
+
+\item \verb$void init_den_grid();$
+
+\item \verb$void del_den_grid();$
+
+\item \verb$double density_at_grid(const double *grid_id);$
+\begin{itemize}
+  \item the value of density at the given grid.
+\end{itemize}
+
+\item \verb$void cells_accumulator(cells_iter, loop_terminater, );$
+\begin{itemize}
+  \item loop generator, to loop over cells in the super-cell.
+\end{itemize}
+The example below shows using \verb$cells_looper$ to find the farthest cell in
+the super-cells
+\end{itemize}
+
+\section{Reference}
+Mol. Phys. 77, 629
+
+\end{document}

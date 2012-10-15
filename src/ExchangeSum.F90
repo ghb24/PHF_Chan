@@ -22,11 +22,12 @@ subroutine ExchangeSum(ExEnergy,Exchange,Lattice,UnitCell,Supercell,Density)
     integer :: UnitCellFns
     integer :: SupercellFns
     integer :: ap,bp,cp,i,ic,ierr
-    integer :: nlam,nmu,ngroups_unit,ngroups_super,nperms_a,nperms_b,nperms_c
+    integer :: nnu,nsig,nlam,nmu,ngroups_unit,ngroups_super,nperms_a,nperms_b,nperms_c
     integer :: lam_shell,mu_shell,sig_shell,nu_shell
+    integer :: lam,mu,nu,sig,xlam,xmu,nSS_Sq
     integer :: shella,shellb,shellc,SymUniqUnitcellFns
     real(dp), allocatable :: UnpackedDM(:,:)    !SS x SS unpacked DM
-    real(dp), allocatable :: ConvergedInts(:,:) !The converged integrals
+    real(dp), allocatable :: ConvergedInts(:,:,:,:) !The converged integrals
     !The lattice translations for the sums
     integer, allocatable :: a_vecs(:,:),b_vecs(:,:),c_vecs(:,:)   
     !Real-space translations of each orbital in the integral sum
@@ -78,9 +79,11 @@ subroutine ExchangeSum(ExEnergy,Exchange,Lattice,UnitCell,Supercell,Density)
 
     !Obtain unpacked DM
 
-    !Allocate memory for integrals converged over lattice vectors
-    allocate(ConvergedInts(SupercellFns,SupercellFns),stat=ierr)
-    if(ierr.ne.0) call stop_all(t_r,'Allocation error')
+    !Just to test, use diagonal UnpackedDM
+    UnpackedDM(:,:) = 0.0_dp
+    do i=1,SupercellFns
+        UnpackedDM(i,i) = 1.0_dp
+    enddo
 
     !There should be a maximum of 48 permutations for any one shell, assuming no degeneracy
     allocate(a_vecs(3,48))
@@ -97,12 +100,14 @@ subroutine ExchangeSum(ExEnergy,Exchange,Lattice,UnitCell,Supercell,Density)
     ngroups_unit = Unitcell%OrbBasis%Groups%nSize
     write(6,*) "Number of groups of basis functions in unitcell: ",ngroups_unit
 
-
     ic = create_integral_context(0,0,1.0e-10_dp)
-    strides = (/0,0,0,0/)     !Create strides
-!    call assign_integral_kernal_(ic,INTKERNAL_TruncCoul,0,0)
+    call assign_integral_kernel(ic,3,0,0)  !3 is for coulomb kernal
+
+    nSS_Sq = SupercellFns*SupercellFns
 
     !The number of functions in each shell is given by Supercell_groups(igroup)%nFn
+    mu=1
+    lam=1
 
     !Loop over mu, lambda   SHELLS!
     do mu_shell=1,ngroups_unit 
@@ -110,9 +115,12 @@ subroutine ExchangeSum(ExEnergy,Exchange,Lattice,UnitCell,Supercell,Density)
         nmu = Unitcell_groups(mu_shell)%nFn
 
         do lam_shell=1,ngroups_super
-            nlam = Unitcell_groups(lam_shell)%nFn
+            nlam = Supercell_groups(lam_shell)%nFn
 
-            ConvergedInts(:,:) = 0.0_dp !Index 1: nu, index 2: sigma
+            !Allocate memory for integrals converged over lattice vectors
+            allocate(ConvergedInts(SupercellFns,SupercellFns,nmu,nlam),stat=ierr)
+            if(ierr.ne.0) call stop_all(t_r,'Allocation error')
+            ConvergedInts(:,:,:,:) = 0.0_dp !Index 1: nu, index 2: sigma, index 3: mu (just over current group), 4: lambda (current group)
             !Begin to accumulate (mu nu | lambda sigma) - nu fast
 
             !up to 4 supercell translations in each direction
@@ -148,11 +156,27 @@ subroutine ExchangeSum(ExEnergy,Exchange,Lattice,UnitCell,Supercell,Density)
                                     !Questions for G:
                                         ! shell indices - supercell basis or unit cell basis?
                                         ! Basis set from unit cell or supercell? And should it be the C-pointer or fortran?
+                                        ! How to get KERNAL value
 
-                                    
+                                    !Loop over nu, sigma   SHELLS!
+                                    nu=1
+                                    do nu_shell=1,ngroups_super
+                                        nnu = Supercell_groups(nu_shell)%nFn
 
-                                    call eval_group_int2e_tra_incr(ConvergedInts(1,1),strides(1),-0.5_dp,mu_shell,TransVec(1,1),    &
-                                        nu_shell,TransVec(1,2),lam_shell,TransVec(1,3),sig_shell,TransVec(1,4),Supercell%OrbBasis, ic)
+                                        sig=1
+                                        do sig_shell=1,ngroups_super
+                                            nsig = Supercell_groups(sig_shell)%nFn
+
+                                            !It *should* accumulate the integrals, but check this
+                                            !Want to fill up ConvergedInts(nu:nu+nnu,sig:sig+nsig,1:nmu,1:nlam) for (mu nu | lam sig)
+                                            strides = (/ nSS_sq, 1, nSS_sq*nMu, SupercellFns/) ! nSS x nSS x nMu x nLam
+                                            call eval_group_int2e_tra_incr(ConvergedInts(nu,sig,1,1),strides(1),-0.5_dp,mu_shell,TransVec(1,1),    &
+                                                nu_shell,TransVec(1,2),lam_shell,TransVec(1,3),sig_shell,TransVec(1,4),Supercell%OrbBasis, ic)
+
+                                            sig=sig+nsig    !Increment the sigma value we are up to
+                                        enddo
+                                        nu=nu+nnu   !Increment the nu value we are up to
+                                    enddo
 
                                 enddo
                             enddo
@@ -161,15 +185,25 @@ subroutine ExchangeSum(ExEnergy,Exchange,Lattice,UnitCell,Supercell,Density)
                 enddo
             enddo
 
-            !contract here, to contract converged integrals with density matrix
-!            ExMat(mu,lam) = DDOT(SupercellFns*SupercellFns,ConvergedInts,1,DenMat,1)
+            do xmu=1,nmu    !Loop over functions in mu shell
+                do xlam=1,nlam  !Loop over functions in lambda shell
 
+                    !contract here, to contract converged integrals with density matrix
+                    ExMat(mu+xmu-1,lam+xlam-1) = DDOT(nSS_sq,ConvergedInts(:,:,xmu,xlam),1,UnpackedDM,1)
+
+                enddo
+            enddo
+
+            deallocate(ConvergedInts)
+
+            lam=lam+nlam
         enddo
+        mu=mu+nmu
     enddo
 
     !Now calculate the exchange energy - contract again with the density matrix for the other electron
     ExEnergy = 0.0_dp
-    ExEnergy = DDOT(SupercellFns*SupercellFns,ExMat,1,DenMat,1)
+    ExEnergy = DDOT(nSS_Sq,ExMat,1,UnpackedDM,1)
 
     write(6,*) "Exchange energy calculated as: ",ExEnergy
 

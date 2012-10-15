@@ -164,6 +164,23 @@ extern "C" {
       FORTINT const &iGrpA, FBasisSet const &BasisA,
       FORTINT const &iGrpB, FBasisSet const &BasisB, FORTINT &iContext);
 
+   /// evaluate 2-electron integrals (ab|krn|cd). where x=a/b/c/d are the shell-groups
+   /// BasisABCD[iGrpX], but their centers are translated by the vectors vTraX
+   /// (note: in Fortran, read this as 'vTraX :: double(3)'.
+   /// All groups are taken from the same basis set, BasisABCD.
+   /// This function *INCREMENTS* the output buffer! It does not clear it.
+   ///   \p pOut      Output will be written to pOut[iFnA*Strides[0] + iFnB*Strides[1] + ...]
+   ///   \p Strides   row/column strides of output data. [0] is for A, [1] is for B
+   ///   \p Factor    prefactor: integral data will be multiplied by this.
+   ///   \p iContext  Integral context defining the parameters (kernel, thresholds, etc).
+   ///                \see CreateIntegralContext
+   void FD(eval_group_int2e_tra_incr)(double *pOut, FORTINT *Strides, double const &Factor,
+      FORTINT const &iGrpA, FVector3 const &vTraA,
+      FORTINT const &iGrpB, FVector3 const &vTraB,
+      FORTINT const &iGrpC, FVector3 const &vTraC,
+      FORTINT const &iGrpD, FVector3 const &vTraD,
+      FBasisSet const &BasisABCD, FORTINT &iContext);
+
    /// evaluate 1-electron integrals < a|krn|b>. where a and b run over the entire basis A/B.
    ///   \p pOut      Output will be written to pOut[iFnA*Strides[0] + iFnB*Strides[1]]
    ///   \p Strides   row/column strides of output data. [0] is for A, [1] is for B

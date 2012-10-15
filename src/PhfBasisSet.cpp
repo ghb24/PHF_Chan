@@ -229,13 +229,13 @@ void FD(eval_group_int1e)(double *pOut, FORTINT *Strides, double const &Factor,
    FGaussShell
       ShA(giA.iCen, BasisA.Centers[giA.iCen],
          new FGaussBfn(giA.l, FGaussBfn::TYPE_Unnormalized | FGaussBfn::TYPE_Spherical,
-            FScalarArray(&BasisA.Data[giA.iExp],&BasisA.Data[giA.iExp+giA.nExp]),
+            aic::FScalarArray(&BasisA.Data[giA.iExp],&BasisA.Data[giA.iExp+giA.nExp]),
             &BasisA.Data[giA.iCo], giA.nCo ));
    FGroupInfo const &giB = BasisB[iGrpB];
    FGaussShell
       ShB(giB.iCen, BasisB.Centers[giB.iCen],
          new FGaussBfn(giB.l, FGaussBfn::TYPE_Unnormalized | FGaussBfn::TYPE_Spherical,
-            FScalarArray(&BasisB.Data[giB.iExp],&BasisB.Data[giB.iExp+giB.nExp]),
+            aic::FScalarArray(&BasisB.Data[giB.iExp],&BasisB.Data[giB.iExp+giB.nExp]),
             &BasisB.Data[giB.iCo], giB.nCo ));
 
    FDoublettIntegralFactory
@@ -368,6 +368,141 @@ void FD(eval_basis_int2e_contract_point_charges)(double *pOut, FORTINT *Strides,
    // call aic_vec_contract_a.
 }
 
+
+// c/p'd from AicDrv.
+struct FPrimOverlap
+{
+   FVector3
+      vCen, // weighted center
+      vDir; // direction B-A.
+   double
+      Eta, // ZetaA + ZetaB
+      InvEta, // 1/(ZetaA + ZetaB)
+      Zeta, // 1/(1/ZetaA + 1/ZetaB)
+      Sab; // overlap integral of s-functions.
+   FPrimOverlap( FVector3 const &A, double ZetaA, FVector3 const &B, double ZetaB )
+   {
+      Eta = ZetaA + ZetaB;
+      InvEta = 1.0/Eta;
+      Zeta = ZetaA * ZetaB * InvEta;
+      for ( int i = 0; i < 3; ++ i ){
+         vDir[i] = B[i] - A[i];
+         vCen[i] = InvEta * ( ZetaA * A[i] + ZetaB * B[i] );
+      }
+      Sab = exp( -Zeta * Dot(vDir,vDir) );
+   }
+};
+
+// return pointer to a nExpA x nExpB matrix of FPrimOverlap structures.
+static FPrimOverlap *MakePrimOverlapPairs(FShellData const &ShA, FShellData const &ShB, FMemoryStack &Mem)
+{
+   FPrimOverlap
+      *pOut;
+   Mem.Alloc(pOut, ShA.nPrim * ShB.nPrim);
+   for ( uint iPrimB = 0; iPrimB < ShA.nPrim; ++ iPrimB )
+      for ( uint iPrimA = 0; iPrimA < ShB.nPrim; ++ iPrimA )
+         new(&pOut[iPrimA + ShA.nPrim * iPrimB]) FPrimOverlap(ShA.vCenter, ShA.pExp[iPrimA], ShB.vCenter, ShB.pExp[iPrimB]);
+   return pOut;
+};
+
+void FD(eval_group_int2e_tra_incr)(double *pOut, FORTINT *Strides, double const &OutputFactor,
+   FORTINT const &iGrpA, FVector3 const &vTraA,
+   FORTINT const &iGrpB, FVector3 const &vTraB,
+   FORTINT const &iGrpC, FVector3 const &vTraC,
+   FORTINT const &iGrpD, FVector3 const &vTraD,
+   FBasisSet const &BasisABCD, FORTINT &iContext)
+{
+   FAicIntegralContext
+      *ic = GetContext(iContext);
+   using namespace aic;
+   assert(ic->pKernel != 0);
+
+   // well.. just do it with s-functions. we actually calculate the integrals
+   // ourselves here. This will of course be slow.
+   //
+   // how it works:
+   //   (1) loop over primitives
+   //     (2) invoke the kernel
+   //     (3) add to contracted output
+
+   FShellData
+      ShA = MakeAicShellData(BasisABCD, iGrpA),
+      ShB = MakeAicShellData(BasisABCD, iGrpB),
+      ShC = MakeAicShellData(BasisABCD, iGrpC),
+      ShD = MakeAicShellData(BasisABCD, iGrpD);
+   ShA.vCenter += vTraA; ShB.vCenter += vTraB; ShC.vCenter += vTraC; ShD.vCenter += vTraD;
+   assert(ShA.l == 0 && ShB.l == 0 && ShC.l == 0 && ShD.l == 0);
+
+   uint
+      TotalL = ShA.l + ShB.l + ShC.l + ShD.l;
+   double
+       // *pGm: G(m) times Sab * Scd * (pi/(ZetaA+ZetaB+ZetaC+ZetaD))^{3/2}.
+       // for all primitives directly behind each other.
+      *pGm;
+   ic->Mem.Alloc(pGm, TotalL+1);
+
+   FPrimOverlap
+      *pOvlAB = MakePrimOverlapPairs(ShA, ShB, ic->Mem),
+      *pOvlCD = MakePrimOverlapPairs(ShC, ShD, ic->Mem);
+
+   for ( uint iPrimB = 0; iPrimB < ShB.nPrim; ++ iPrimB )
+   for ( uint iPrimA = 0; iPrimA < ShA.nPrim; ++ iPrimA )
+   {
+//       double
+//          ZetaA = ShA.pExp[iPrimA],
+//          ZetaB = ShB.pExp[iPrimB];
+      FPrimOverlap
+         &OvAB = pOvlAB[iPrimA + ShA.nPrim * iPrimB];
+      for ( uint iPrimD = 0; iPrimD < ShD.nPrim; ++ iPrimD )
+      for ( uint iPrimC = 0; iPrimC < ShC.nPrim; ++ iPrimC )
+      {
+//          double
+//             ZetaC = ShC.pExp[iPrimC],
+//             ZetaD = ShD.pExp[iPrimD];
+         FPrimOverlap
+            &OvCD = pOvlCD[iPrimC + ShC.nPrim * iPrimD];
+         FVector3 const
+            &P = OvAB.vCen,
+            &Q = OvCD.vCen,
+            PmQ = P - Q; // R.
+         double
+            InvEtaABCD = 1.0/(OvAB.Eta + OvCD.Eta),
+            rho = (OvAB.Eta * OvCD.Eta) * InvEtaABCD,
+            Dummy = M_PI * InvEtaABCD,
+            Prefactor = sqrt(Dummy) * Dummy * OvAB.Sab * OvCD.Sab * OutputFactor;
+
+         // Make I^m (00|00) = (pi/EtaABCD)^{3/2} Sab Scd G(m);
+         // This is eq. (7) in PCPP 8 3072 (3073).
+         ic->pKernel->EvalGm(pGm, rho, rho * Dot(PmQ,PmQ), TotalL, Prefactor);
+
+         // until this point things are still quite general (a proper integral
+         // routine would also have to look like that, apart from the lattice
+         // summation stuff). But now we actually skip all recursions and
+         // assume that we already have the final primitive integrals,
+         // and we don't bother with doing the contractions properly.
+
+         // add primitive (a0|c)-integral to all contractions in which it occurs.
+         for ( uint iCoB = 0; iCoB != ShB.nCo; ++ iCoB )
+            for ( uint iCoA = 0; iCoA != ShA.nCo; ++ iCoA ) {
+            {
+               double CoAB = ShA.pCo[iPrimA + ShA.nPrim*iCoA]
+                           * ShB.pCo[iPrimB + ShB.nPrim*iCoB];
+               size_t iOffAB = iCoA*Strides[0] + iCoB*Strides[1];
+               for ( uint iCoD = 0; iCoD != ShD.nCo; ++ iCoD )
+                  for ( uint iCoC = 0; iCoC != ShC.nCo; ++ iCoC )
+                  {
+                     double CoCD = ShC.pCo[iPrimC + ShC.nPrim*iCoC]
+                                 * ShD.pCo[iPrimD + ShD.nPrim*iCoD];
+                     size_t iOffCD = iCoC*Strides[2] + iCoD*Strides[3];
+
+                     pOut[iOffAB + iOffCD] += CoAB*CoCD * pGm[0];
+                  }
+            }
+         } // contraction and write to output
+      } // C/D primitives
+   } // A/B primitives
+   ic->Mem.Free(pGm);
+};
 
 
 

@@ -21,6 +21,10 @@ extern "C" {
     void exchangesum_(double&,FOpMatrix&,FLattice&,FUnitCell&,FSuperCell&,FOpMatrix&); 
 }
 
+//some "C-style" function definitions which will have to be written
+void initialize(double *rdm);
+void construct_Fock(double *Fock,double *rdm);
+
 int main(int argc, char *argv[])
 {
 
@@ -109,12 +113,98 @@ int main(int argc, char *argv[])
 
    xout << format("wheee!!") << std::endl;
 
+   //first you have to set the dimension of the Fock matrix and density matrix
+   int M = 64;
+
+   //and the number of particles
+   int N = 64;
+
+   //this function initializes the RSPM class given the correct dimensions
+   RSPM::init(M,N);
+
+   //initialize spm: this function doens't exist yet, as input I expect a 
+   RSPM spm;
+   initialize(spm.gMatrix()[0]);
+
+   //some variables needed in scf loop
+   RSPM copy,F;
+   Vector v(M);
+
+   DIIS diis;
+
+   RSPM commutator;
+
+   double convergence = 1.0;
+
+   int iter = 0;
+
+   //basic scf loop, easy peasy
+   while(convergence > 1.0e-14){
+
+      ++iter;
+
+      //construct the fock matrix
+      construct_Fock(F.gMatrix()[0],spm.gMatrix()[0]);
+
+      //add it to the diis object
+      diis.push_F(F);
+
+      //calculate the commutator between F and the spm
+      commutator.commute(F,spm);
+
+      //add it to diis object
+      diis.push_comm(commutator);
+
+      //construct the B matrix and solve the system: output = b coefficients
+      diis.construct();
+
+      //now construct the "relaxed" Fock matrix
+      F.relax(diis);
+
+      v.diagonalize(F);
+
+      copy = spm;
+
+      spm.update(F);
+
+      copy -= spm;
+
+      convergence = std::sqrt(copy.ddot(copy));
+
+      cout << iter << "\t" << convergence << endl;
+   
+   }
+
+   cout << endl;
+   cout << "single-particle spectrum is:" << endl;
+   cout << endl;
+
+   construct_Fock(F.gMatrix()[0],spm.gMatrix()[0]);
+   v.diagonalize(F);
+
+   cout << v << endl;
+
    // test call of fortran
    double ExchangeEnergy;
    exchangesum_(ExchangeEnergy,Exchange,Solid.Lattice,Solid.UnitCell,Solid.SuperCell,Density);
 
 };
 
+/**
+ * this function will need to construct an initiatial guess for the density matrix, and put it in the pointer A.
+ * This object rdm is structured as a fortran style matrix, i.e. columnwise storage.
+ */
+void initialize(double *rdm){
+
+}
+
+/**
+ * Given the current iteration of the rdm, construct the Fock matrix, calling probably the different functions to evaluate matrixelements.
+ * This object A is structured as a fortran style matrix, i.e. columnwise storage.
+ */
+void construct_Fock(double *Fock,double *rdm){
+
+}
 
 
 // define scf:

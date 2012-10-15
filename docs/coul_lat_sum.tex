@@ -85,20 +85,20 @@ we can rewrite the expression of density Eq. \eqref{eq:rho:r} as
   \tilde{\rho}(\mathbf{r})
   &=\sum_{\mu\nu IJ}D_{\mu\nu}^{I,I+J}
   \mu^I(\mathbf{r})\nu^{I+J}(\mathbf{r}) - \rho_0
-  =\sum_{I} \tilde{\rho}^I(\mathbf{r})
+  =\sum_{I} \rho^I(\mathbf{r}) - \rho_0
   \label{eq:rho:div} \\
-  \tilde{\rho}^I(\mathbf{r})
+  \rho^I(\mathbf{r})
   &=\sum_{\mu\nu J}D_{\mu\nu}^{0J}
-  \mu^I(\mathbf{r})\nu^{I+J}(\mathbf{r}) - \rho_0 \notag\\
+  \mu^I(\mathbf{r})\nu^{I+J}(\mathbf{r}) \notag\\
   &=\sum_{\mu\nu J}D_{\mu\nu}^{0J}
-  \mu^0(\mathbf{r}-\mathbf{R}^I)\nu^0(\mathbf{r}-\mathbf{R}^{I+J}) - \rho_0
+  \mu^0(\mathbf{r}-\mathbf{R}^I)\nu^0(\mathbf{r}-\mathbf{R}^{I+J})
   \label{eq:rho:ra}
 \end{align}
 $D_{\mu\nu}^{0J}$ yields a density matrix with
 $n_\text{AO} \times n_\text{AO} \times n_\text{UnitCells}$ elements.
 Eq. \eqref{eq:rho:div} decomposes the total density into the individual
 cellular contributions.
-Every single cell $\tilde{\rho}^I(\mathbf{r})$ contributes to the density
+Every single cell $\rho^I(\mathbf{r})$ contributes to the density
 distribution over the whole space.
 Due to the periodic condition, 
 we have the same density distribution for each single cell.
@@ -106,12 +106,14 @@ So their contributions to the total density can be refined to the contribution
 of $0$-th cell
 \begin{align}
   \tilde{\rho}(\mathbf{r})
-  &=\sum_{I}\tilde{\rho}^I(\mathbf{r})
-  = \sum_{I}\tilde{\rho}^0(\mathbf{r}-\mathbf{R}^I)
+  &=\sum_{I}\rho^I(\mathbf{r}) - \rho_0
+  = \sum_{I}\rho^0(\mathbf{r}-\mathbf{R}^I) - \rho_0
   \label{eq:rho:r0} \\
-  \tilde{\rho}^0(\mathbf{r})
+  \rho^0(\mathbf{r})
   &=\sum_{\mu\nu J}D_{\mu\nu}^{0J}
-  \mu^0(\mathbf{r})\nu^0(\mathbf{r}-\mathbf{R}^{J}) - \rho_0
+  \mu^0(\mathbf{r})\nu^0(\mathbf{r}-\mathbf{R}^{J})
+  = \sum_{\mu\nu J}D_{\mu\nu}^{0J}
+  \mu^0(\mathbf{r})\nu^J(\mathbf{r})
 \end{align}
 
 The FFT of $\tilde{\rho}(\mathbf{k})$ in the whole real space reads
@@ -120,7 +122,7 @@ The FFT of $\tilde{\rho}(\mathbf{k})$ in the whole real space reads
   =\int d\mathbf{r}^3 \tilde{\rho}(\mathbf{r}) e^{-i\mathbf{k}\cdot\mathbf{r}}
   =\sum_{\mathbf{r}} \tilde{\rho}(\mathbf{r})
   e^{-i\mathbf{k}\cdot \mathbf{r}}
-  =\sum_{\mathbf{r} I} \tilde{\rho}^I(\mathbf{r})
+  =\sum_{\mathbf{r} I}(\rho^I(\mathbf{r}) - \rho^0)
   e^{-i\mathbf{k}\cdot \mathbf{r}}
   \label{}
 \end{align}
@@ -196,7 +198,7 @@ $\tilde{V}(\mathbf{r})$ in the remaining cells
 Based on the periodic feature of the basis function and the potential, we
 can derive the expression of $\tilde{V}_{\mu\nu}^{0J}$
 \begin{align}
-  V_{\mu\nu}^{0J}
+  \tilde{V}_{\mu\nu}^{0J}
   &=\sum_{\mathbf{r}} \mu^0(\mathbf{r})\tilde{V}(\mathbf{r})\nu^J(\mathbf{r})
   \\
   &=\sum_{I}\sum_{\mathbf{r}\in I} \mu^0(\mathbf{r})
@@ -216,7 +218,8 @@ crystal.  The actual series of indices $I$ can always be truncated.
 When we use a super cell to mimic the crystal,
 we only loop over all the unit cells in the given super cell.
 (??May need to shift the farthest cell $\mathbf{R}^I-\mathbf{R}^{N_{x,y,z}}$,
-$N_{x,y,z}$ is the number of cells along one Cartesian axis in the super cell)
+$N_{x,y,z}$ is the number of cells along one Cartesian axis in the super
+cell).
 In Eq. \eqref{eq:rho:r0} and \eqref{eq:v:r0},
 we constrain the electron coordinate indices $\mathbf{r}$ in the $0$-th cell.
 The range of $\mathbf{r}$ thus go from 0 to the number of mesh grids in one
@@ -228,7 +231,7 @@ cell which is
 
 
 \section{Programming model}
-We set up a class ?\verb$gird_3d$ to store the
+We set up a class ?\verb$grid_3d$ to store the
 grid informations. It includes the
 \begin{itemize}
   \item the coordinates of mesh grids in one cell
@@ -239,14 +242,15 @@ grid informations. It includes the
 \begin{itemize}
   \item
 \begin{verbatim}
-void coul_matrix(lattice_info, unit_cell_info, basis_info,
+double coul_matrix(p_lattice, p_unit_cell, p_super_cell
         const double *den_mat, double *coul_mat);
 \end{verbatim}
 \begin{itemize}
   \item main function to generate the Coulomb matrix.
-  \item Input: lattice info (lattice vector, electron number, ...), basis
+  \item input: lattice info (lattice vector, electron number, ...), basis
     info., density matrix with dims nAO $\times$ nAO $\times$ nUnitCells
-  \item Output: double array with dims nAO $\times$ nAO $\times$ nUnitCells
+  \item output: double array with dims nAO $\times$ nAO $\times$ nUnitCells
+  \item return: Coulomb energy
 \end{itemize}
 
 \item \verb$void init_den_grid();$

@@ -2,6 +2,7 @@
 \usepackage{amsmath}
 \usepackage{verbatim}
 %\usepackage{listings}
+\allowdisplaybreaks
 
 \begin{document}
 \title{Coulomb lattice summation}
@@ -199,15 +200,22 @@ Based on the periodic feature of the basis function and the potential, we
 can derive the expression of $\tilde{V}_{\mu\nu}^{0J}$
 \begin{align}
   \tilde{V}_{\mu\nu}^{0J}
-  &=\sum_{\mathbf{r}} \mu^0(\mathbf{r})\tilde{V}(\mathbf{r})\nu^J(\mathbf{r})
+  &=\sum_{\mathbf{r}} \omega_\mathbf{r}
+  \mu^0(\mathbf{r})\tilde{V}(\mathbf{r})\nu^J(\mathbf{r})
   \\
-  &=\sum_{I}\sum_{\mathbf{r}\in I} \mu^0(\mathbf{r})
+  &=\sum_{I}\sum_{\mathbf{r}\in I} \omega_\mathbf{r} \mu^0(\mathbf{r})
   \tilde{V}(\mathbf{r} - \mathbf{R}^I)\nu^0(\mathbf{r}-\mathbf{R}^J)
   \\
-  &=\sum_{I}\sum_{\mathbf{r}\in 0} \mu^0(\mathbf{r}+\mathbf{R}^I)
+  &=\sum_{I}\sum_{\mathbf{r}\in 0} \omega_\mathbf{r}
+  \mu^0(\mathbf{r}+\mathbf{R}^I)
   \tilde{V}(\mathbf{r})\nu^0(\mathbf{r} + \mathbf{R}^{I-J})
-  \label{eq:v:r0}
+  =\sum_I \tilde{V}_{\mu\nu}^{0J[I]}
+  \label{eq:v:r0} \\
+  \tilde{V}_{\mu\nu}^{0J[I]}
+  &=\sum_{\mathbf{r}\in 0} \omega_\mathbf{r} \mu^0(\mathbf{r}+\mathbf{R}^I)
+  \tilde{V}(\mathbf{r})\nu^J(\mathbf{r} + \mathbf{R}^{I})
 \end{align}
+where $\omega_\mathbf{r}$ is the integration weight of grid.
 
 In the above equations, the summation limits of AO indices $\mu,\nu,\dots$,
 cell indices $I,J,\dots$, and mesh grid indices $\mathbf{r}$ which correspond

@@ -23,7 +23,6 @@ extern "C" {
    void dgetrf_(int *m ,int *n,double *A,int *lda,int *ipiv,int *INFO);
    void dgetrs_(char *trans ,int *n,int *nrhs,double *A,int *lda,int *ipiv,double *B,int *ldb,int *INFO);
 
-
 }
 
 #endif

@@ -192,6 +192,7 @@ int main(int argc, char *argv[])
 
 /**
  * this function will need to construct an initiatial guess for the density matrix, and put it in the pointer A.
+ * Make sure everything is done in an orthogonal basis
  * This object rdm is structured as a fortran style matrix, i.e. column-major order storage.
  */
 void initialize(double *rdm){
@@ -200,6 +201,7 @@ void initialize(double *rdm){
 
 /**
  * Given the current iteration of the rdm, construct the Fock matrix, calling probably the different functions to evaluate matrixelements.
+ * Make sure everything is done in an orthogonal basis
  * This object A is structured as a fortran style matrix, i.e. column-major order storage.
  */
 void construct_Fock(double *Fock,double *rdm){

@@ -5,10 +5,14 @@
 #include "PhfSolidDef.h"
 #include "PhfBasisSet.h"
 #include "PhfScf.h"
+#include "include.h"
 
 #include "lib/CtIo.h"
 using namespace ct;
 using boost::format;
+
+using std::cout;
+using std::endl;
 
 
 extern "C" {
@@ -100,6 +104,7 @@ int main(int argc, char *argv[])
          Strides, 1.0, Solid.UnitCell.OrbBasis, Solid.SuperCell.OrbBasis,
          &PointCharges[0], &PointCenters[0], PointCenters.size(), ic);
       destroy_integral_context_(ic);
+
    }
 
    xout << format("wheee!!") << std::endl;
@@ -109,8 +114,6 @@ int main(int argc, char *argv[])
    exchangesum_(ExchangeEnergy,Exchange,Solid.Lattice,Solid.UnitCell,Solid.SuperCell,Density);
 
 };
-
-
 
 
 

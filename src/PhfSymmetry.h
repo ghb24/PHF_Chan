@@ -15,13 +15,13 @@
  */
 enum FPointGroup
 {
-    C1  = 0,
-    CS  = 1,
-    C2  = 2,
-    D2  = 3,
-    C2V = 4,
-    C2H = 5,
-    D2H = 6
+    Pg_C1  = 0,
+    Pg_CS  = 1,
+    Pg_C2  = 2,
+    Pg_D2  = 3,
+    Pg_C2V = 4,
+    Pg_C2H = 5,
+    Pg_D2H = 6
 };
 
 /*

@@ -3,7 +3,7 @@
 
 using namespace std;
 
-namespace phf { namespace coulumb_grid {
+namespace phf { namespace coulomb_grid {
 
 void grid_3d::set_ngrid( int nx, int ny, int nz )
 {
@@ -126,4 +126,4 @@ grid_3d::grid_3d( int nx, double lx, double ux,
 
 }
 
-} } // end of phf::coulumb_grid
+} } // end of phf::coulomb_grid

@@ -1,6 +1,6 @@
 #include <vector>
 
-namespace phf { namespace coulumb_grid { 
+namespace phf { namespace coulomb_grid { 
 
 class grid_3d
 {
@@ -98,4 +98,4 @@ public:
 };
 
 
-} } // end of phf::coulumb_grid
+} } // end of phf::coulomb_grid

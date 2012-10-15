@@ -47,13 +47,28 @@ void FCoulombKernel::EvalGm( double *pOut, double rho, double T, uint MaxM, doub
    BoysFn( pOut, MaxM, T, (2*M_PI)*Prefactor/rho );
 }
 
-static void EvalErfCoulombGm(double *pOut, double rho, double T, uint MaxM, double Prefactor, double Omega)
+static void EvalErfCoulombGm(double *pOut, double rho, double T, uint MaxM, double PrefactorFm, double Omega)
 {
-   if ( MaxM != 0 )
+   if ( MaxM != 0 ) {
       assert_rt("!FIXME: implement erf screened coulomb with higher angular momenta.");
+   }
    // dx.doi.org/10.1039/b605188j eq.52, 2nd term.
-   double f = Omega/std::sqrt(Omega*Omega + rho);
-   BoysFn( pOut, MaxM, f*f*T, f*Prefactor );
+   double
+      f = Omega/std::sqrt(Omega*Omega + rho);
+   BoysFn( pOut, MaxM, f*f*T, f*PrefactorFm );
+   double
+      Acc = 1.,
+      ifsq = 1./(f*f);
+   // hack up the derivatives. Note:
+   //    Gm(rho,T) := [-d/dT]^m G0(rho,T)
+   // so we just get some factors for the T we put in the erf'd Boys function.
+   // The normal one calculates derivatives with respect to (f*f*T),
+   // and we need to convert it to derivatives with respect to T.
+   // FIXME: shold this be f*f or 1/f*f?
+   for ( uint i = 1; i <= MaxM; ++ i ){
+      Acc *= ifsq;
+      pOut[i] *= Acc;
+   }
 };
 
 void FErfCoulombKernel::EvalGm( double *pOut, double rho, double T, uint MaxM, double Prefactor ) const
@@ -377,6 +392,23 @@ void FGaussKineticKernel::EvalGm( double *pOut, double Rho, double T, uint MaxM,
       }
    }
 }
+
+
+
+// kernel for r^2 exp(-omega r^2):
+//
+// Hn[rho,T,n] = 1/2 E^(-((T \[Omega])/(\[Rho] + \[Omega]))) \[Pi]^( 3/2) \[Omega]^(-1 + n) (1/(\[Rho] + \[Omega]))^( 7/2 + n) (-2 n \[Rho] (\[Rho] + \[Omega]) + \[Omega] ((3 + 2 T) \[Rho] + 3 \[Omega]))
+//
+// (see r2exp-kernel.nb)
+
+
+
+
+
+
+
+
+
 
 
 FIntegralKernel::~FIntegralKernel() {}

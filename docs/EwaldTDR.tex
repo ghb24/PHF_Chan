@@ -6,7 +6,7 @@
 \usepackage{amssymb}
 \usepackage[left=2cm,right=2cm,top=2cm,bottom=2cm]{geometry}
 \author{Sebastian Wouters}
-\title{Why do we need the Ewald stuff in Waffel 0.1?}
+\title{Why do we need the Ewald stuff in Waffle 0.1?}
 \begin{document}
 \maketitle
 \section{Intro}
@@ -45,7 +45,7 @@ can be split up into
 \begin{equation}
 \int \frac{\tilde{\rho}_N(\vec{r}') \text{erf}\left( \frac{\sqrt{\eta}}{2} \mid \vec{r} - \vec{r}' \mid \right)}{\mid \vec{r} - \vec{r}' \mid} d\vec{r}' + \int \frac{\tilde{\rho}_N(\vec{r}') \text{erfc}\left( \frac{\sqrt{\eta}}{2} \mid \vec{r} - \vec{r}' \mid \right)}{\mid \vec{r} - \vec{r}' \mid} d\vec{r}'
 \end{equation}
-The complementary error function decays exponentially fast for increasing arguments, so this integral/summation can be easily done in real space. The error function part contains the long-range tail of $\frac{1}{x}$, whereas its divergence at $x=0$ is completely contained in the part with the complementary error function. The erf part can hence be dealt with in reciprocal space.
+The complementary error function decays exponentially fast for increasing arguments, so this integral/summation can be easily done in real space. The error function part contains the long-range tail of $\frac{1}{x}$, whereas the divergence of $\frac{1}{x}$ at $x=0$ is completely contained in the complementary error function part. The erf part can hence be dealt with in reciprocal space.
 \subsection{erfc}
 This part is equal to
 \begin{equation}
@@ -60,7 +60,7 @@ This part is equal to
 \begin{equation}
 \int \left[ - \sum\limits_{\alpha \mathbf{T}} Z_{\alpha} \delta(\vec{r}' - (\vec{r}_{\alpha} + \mathbf{T})) + \frac{N}{\Omega} \right]  \frac{\text{erf}\left( \frac{\sqrt{\eta}}{2} \mid \vec{r} - \vec{r}' \mid \right)}{\mid \vec{r} - \vec{r}' \mid} d\vec{r}'
 \end{equation}
-where the summation over $A$ is split into the sum $\alpha$ over the charges in one unit cell and the sum $\mathbf{T}$ over the different unit cells. With
+where the summation $A$ is split into the sum $\alpha$ over the charges in one unit cell and the sum $\mathbf{T}$ over the different unit cells. With
 \begin{equation}
 \sum\limits_{\mathbf{T}} \delta(\vec{r} - \mathbf{T}) = \frac{1}{\Omega} \sum\limits_{\mathbf{G}} e^{i \mathbf{G} . \vec{r}}
 \end{equation}
@@ -76,22 +76,27 @@ The integral can be dealt with analytically, yielding:
 \begin{equation}
 \int \frac{\tilde{\rho}_N(\vec{r}')}{\mid \vec{r} - \vec{r}' \mid} d\vec{r}' = - \sum\limits_A Z_A \frac{\text{erfc}\left( \frac{\sqrt{\eta}}{2} \mid \vec{r} - \vec{r}_A \mid \right)}{\mid \vec{r} - \vec{r}_A \mid} + \frac{4 \pi N}{\Omega \eta} - \frac{4 \pi}{\Omega} \sum\limits_{\alpha} Z_{\alpha} \sum\limits_{\mathbf{G} \neq 0} \frac{e^{i \mathbf{G}.(\vec{r} - \vec{r}_{\alpha})} e^{-G^2/\eta}}{G^2} \label{gjgj2}
 \end{equation}
-\subsection{Input, output, program comments}
-\begin{itemize}
-\item We will work in C++.
-\item The one-electron integral routine calls the Ewald e-N subroutine. Needs to be done only once at the start of the program.
-\item The first two terms on the r.h.s. are done analytically by the one-electron routines, while we provide the last part sandwiched between two s-type gaussian orbitals, defined by $(\eta,\vec{R}) \rightarrow e^{-\eta (\vec{r} - \vec{R})^2}$. This can then be used in combination with overlap recursion relation to calculate this operator sandwiched by higher order angular momentum gaussians.
-\item Input 0: The two s-orbital parameters $(\eta_1,\eta_2,\vec{R}_1,\vec{R}_2)$.
-\item Input 1: The supercell (skew) basis vectors $(\vec{a},\vec{b},\vec{c})$
-\item Input 2: The reciprocal (skew) basis vectors $(\vec{G}_a,\vec{G}_b,\vec{G}_c)$. We use the convention $\vec{G}_a . \vec{b} = 2 \pi \delta_{a,b}$.
-\item Input 3: A list of locations $(x,y,z)$ for calculating Eq. \eqref{gjgj}, for example with the convention $\vec{r} = x \vec{a} + y \vec{b} + z \vec{c}$.
-\item Input 4: A list of locations $(x_i,y_i,z_i)$ and charges $Z_i$ for the nuclei in the supercell.
-\item Output: A list of the same length as the list $(x,y,z)$, containing the values Eq. \eqref{gjgj2} at those locations.
-\end{itemize}
+All terms on the r.h.s. can be sandwiched between gaussian basis functions analytically. The first two terms are already incorporated in the one-electron integral program. For the last term, we can derive recursion relations too:
+\begin{eqnarray}
+(\zeta_a,\vec{n}_a+\vec{1}_i,\vec{A} \mid e^{i \vec{G}. \vec{r}} \mid \zeta_b,\vec{n}_b,\vec{B} ) & = & \left( \frac{\zeta_a A_i + \zeta_b B_i + \frac{i G_i}{2}}{\zeta_a + \zeta_b} - A_i \right) (\zeta_a,\vec{n}_a,\vec{A} \mid e^{i \vec{G}. \vec{r}} \mid \zeta_b,\vec{n}_b,\vec{B} ) \nonumber \\
+& + & \frac{1}{2(\zeta_a + \zeta_b)} N_i(\vec{n}_a) (\zeta_a,\vec{n}_a-\vec{1}_i,\vec{A} \mid e^{i \vec{G}. \vec{r}} \mid \zeta_b,\vec{n}_b,\vec{B} ) \nonumber \\
+& + & \frac{1}{2(\zeta_a + \zeta_b)} N_i(\vec{n}_b) (\zeta_a,\vec{n}_a,\vec{A} \mid e^{i \vec{G}. \vec{r}} \mid \zeta_b,\vec{n}_b -\vec{1}_i,\vec{B} )\\
+(\zeta_a,\vec{0},\vec{A} \mid e^{i \vec{G}. \vec{r}} \mid \zeta_b,\vec{0},\vec{B} ) & = & \left( \frac{\pi}{\zeta_a + \zeta_b} \right)^{\frac{3}{2}} e^{\frac{\left( \zeta_a \vec{A} + \zeta_b \vec{B} + \frac{i \vec{G}}{2} \right)^2}{\zeta_a + \zeta_b} - (\zeta_a \vec{A}^2 + \zeta_b \vec{B}^2)}
+\end{eqnarray}
 \section{The nuclear-nuclear term}
 The nuclear-nuclear term (per supercell) is given by
 \begin{equation}
-\frac{W}{N} = \sum\limits_{\alpha\beta} \frac{Z_{\alpha}Z_{\beta}}{2} \left( \frac{4\pi}{\Omega} \sum\limits_{\mathbf{G} \neq 0} \frac{e^{i \mathbf{G}.(\vec{r}_{\beta} - \vec{r}_{\alpha})} e^{-G^2/\eta}}{G^2} - \sqrt{\frac{\eta}{\pi}} \delta_{\alpha\beta} + \sum\limits_{\mathbf{T}}^{'} \frac{\text{erfc}\left( \frac{\sqrt{\eta}}{2} \mid \vec{r}_B - \vec{r}_A + \mathbf{T} \mid \right)}{\mid \vec{r}_B - \vec{r}_A + \mathbf{T} \mid}  \right) - \frac{4 \pi N^2}{2 \Omega \eta} \label{gjgj3}
+W = \sum\limits_{\alpha\beta} \frac{Z_{\alpha}Z_{\beta}}{2} \left( \frac{4\pi}{\Omega} \sum\limits_{\mathbf{G} \neq 0} \frac{e^{i \mathbf{G}.(\vec{r}_{\beta} - \vec{r}_{\alpha})} e^{-G^2/\eta}}{G^2} - \sqrt{\frac{\eta}{\pi}} \delta_{\alpha\beta} + \sum\limits_{\mathbf{T}}^{'} \frac{\text{erfc}\left( \frac{\sqrt{\eta}}{2} \mid \vec{r}_B - \vec{r}_A + \mathbf{T} \mid \right)}{\mid \vec{r}_B - \vec{r}_A + \mathbf{T} \mid}  \right) - \frac{4 \pi N^2}{2 \Omega \eta} \label{gjgj3}
 \end{equation}
-where the ' denotes that that the self-interaction term is explicitly kept out for the case $\mathbf{T} = 0$.
+where the ' denotes that the self-interaction term is explicitly kept out for the case $\mathbf{T} = 0$.
+\section{Input, output, program comments}
+We will work in C++. The Ewald class has the following functionalities:
+\begin{itemize}
+\item Ewald::Ewald takes in info about the unit cell: nuclear charges, supercell translation vectors ($\mathbf{T}_1, \mathbf{T}_2,\mathbf{T}_3$), locations of the nuclear charges $\left\{ Z_{\alpha} \right\}$ defined as $\vec{r}_{\alpha} = x_{\alpha} \mathbf{T}_1 + y_{\alpha} \mathbf{T}_2 + z_{\alpha} \mathbf{T}_3$, supercell reciprocal vectors ($\mathbf{G}_1,\mathbf{G}_2,\mathbf{G}_3$), and supercell volume.
+\item Ewald::NN taken in the parameter $\eta$ and returns the nuclear-nuclear repulsion energy $W$.
+\item Ewald::eN takes in info of two gaussian primitives $(\zeta_a,\vec{n}_a,\vec{A},\zeta_b,\vec{n}_b,\vec{B})$ and the parameter $\eta$ and returns the last term of Eq. \eqref{gjgj2} sandwiched between the two gaussian primitives.
+\end{itemize}
+
+
+
 \end{document}

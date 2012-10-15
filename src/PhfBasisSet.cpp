@@ -180,12 +180,12 @@ void FD(assign_integral_kernel)(FORTINT &iContext, FORTINT const &iKernel, FORTI
       case INTKERNEL_Coulomb:
          ic->pKernel = new aic::FCoulombKernel();
          break;
-      // note: the screened kernels are not yet implemented. It is, however,
-      //       simple to do so by c/p'ing FCoulombKernel and modifying it.
-      //       The formulas for Gm(T,rho) are noted at the end
-      //       of http://dx.doi.org/10.1039/b605188j
-//       INTKERNEL_Coulomb_LongRange_Erf = 4,  // pParamsF[0]: Screening length
-//       INTKERNEL_Coulomb_ShortRange_Erfc = 5 // pParamsF[0]: Screening length
+      case INTKERNEL_Coulomb_LongRange_Erf:
+         ic->pKernel = new aic::FErfCoulombKernel(pParamsF[0]);
+         break;
+      case INTKERNEL_Coulomb_ShortRange_Erfc:
+         ic->pKernel = new aic::FErfcCoulombKernel(pParamsF[0]);
+         break;
       default:
          throw std::runtime_error("integral kernel not recognized.");
    }
@@ -349,8 +349,24 @@ void FD(eval_basis_fn_on_grid)(double *pOut, FORTINT const &nCompSt,
 }
 
 
+//    double const
+//       // just a random large number. Use this for setting up basis sets of multipoles.
+//       fPointMultipoleExponent = 1.84391e20;
 
 
+void FD(eval_basis_int2e_contract_point_charges)(double *pOut, FORTINT *Strides, double const &Factor,
+   FBasisSet const &BasisA, FBasisSet const &BasisB,
+   double const *pCoeffC, FVector3 const *pCentersC, size_t nCentersC, FORTINT &iContext)
+{
+   assert(0);
+   // make a fake basis set with very steep(tm) gaussians instead of point charges.
+   //
+   //
+
+   // ...
+
+   // call aic_vec_contract_a.
+}
 
 
 

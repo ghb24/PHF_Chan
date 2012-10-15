@@ -23,7 +23,7 @@ subroutine ExchangeSum(ExEnergy,Exchange,Lattice,UnitCell,Supercell,Density)
     integer :: SupercellFns
     integer :: ap,bp,cp,i,ic,ierr
     integer :: nlam,nmu,ngroups_unit,ngroups_super,nperms_a,nperms_b,nperms_c
-    integer :: lam_shell,mu_shell
+    integer :: lam_shell,mu_shell,sig_shell,nu_shell
     integer :: shella,shellb,shellc,SymUniqUnitcellFns
     real(dp), allocatable :: UnpackedDM(:,:)    !SS x SS unpacked DM
     real(dp), allocatable :: ConvergedInts(:,:) !The converged integrals
@@ -31,10 +31,11 @@ subroutine ExchangeSum(ExEnergy,Exchange,Lattice,UnitCell,Supercell,Density)
     integer, allocatable :: a_vecs(:,:),b_vecs(:,:),c_vecs(:,:)   
     !Real-space translations of each orbital in the integral sum
     real(dp) :: TransVec(3,4)
+    integer :: strides(4)
     character(len=*), parameter :: t_r='ExchangeSum'
 
     !external functions
-    integer :: create_integral_context_
+    integer :: create_integral_context
     real(dp) :: DDOT
 
     UnitCellFns = UnitCell%OrbBasis%nFn
@@ -97,8 +98,8 @@ subroutine ExchangeSum(ExEnergy,Exchange,Lattice,UnitCell,Supercell,Density)
     write(6,*) "Number of groups of basis functions in unitcell: ",ngroups_unit
 
 
-!    ic = create_integral_context_(0,0,1.0e-10_dp)
-!    strides = (/ /)     !Create strides
+    ic = create_integral_context(0,0,1.0e-10_dp)
+    strides = (/0,0,0,0/)     !Create strides
 !    call assign_integral_kernal_(ic,INTKERNAL_TruncCoul,0,0)
 
     !The number of functions in each shell is given by Supercell_groups(igroup)%nFn
@@ -144,6 +145,14 @@ subroutine ExchangeSum(ExEnergy,Exchange,Lattice,UnitCell,Supercell,Density)
                                     ! Need to loop over all shells(/groups) of basis functions in supercell to construct matrix
                                     !The basis functions are in supercell%OrbBasis
 
+                                    !Questions for G:
+                                        ! shell indices - supercell basis or unit cell basis?
+                                        ! Basis set from unit cell or supercell? And should it be the C-pointer or fortran?
+
+                                    
+
+                                    call eval_group_int2e_tra_incr(ConvergedInts(1,1),strides(1),-0.5_dp,mu_shell,TransVec(1,1),    &
+                                        nu_shell,TransVec(1,2),lam_shell,TransVec(1,3),sig_shell,TransVec(1,4),Supercell%OrbBasis, ic)
 
                                 enddo
                             enddo

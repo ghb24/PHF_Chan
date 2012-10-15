@@ -1,1 +1,6 @@
 config/.default
+Makefile
+config/linux
+bin/
+dest/
+.*.swp

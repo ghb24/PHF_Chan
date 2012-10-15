@@ -383,7 +383,7 @@ int main_integral_export(int argc, char *argv[])
       RequiredMem = 4*nAo*nAo + (500<<20);
    if ( FileName_2eFit != "" )
       RequiredMem += (2*nFit*nAo*nAo) + nFit*nFit;
-   FMemoryStack2
+   ct::FMemoryStack2
       Mem(RequiredMem);
 
    // we'll just do the transformation always, and push a indentity matrix

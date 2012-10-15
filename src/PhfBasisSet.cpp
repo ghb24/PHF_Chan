@@ -229,13 +229,13 @@ void FD(eval_group_int1e)(double *pOut, FORTINT *Strides, double const &Factor,
    FGaussShell
       ShA(giA.iCen, BasisA.Centers[giA.iCen],
          new FGaussBfn(giA.l, FGaussBfn::TYPE_Unnormalized | FGaussBfn::TYPE_Spherical,
-            FScalarArray(&BasisA.Data[giA.iExp],&BasisA.Data[giA.iExp+giA.nExp]),
+            aic::FScalarArray(&BasisA.Data[giA.iExp],&BasisA.Data[giA.iExp+giA.nExp]),
             &BasisA.Data[giA.iCo], giA.nCo ));
    FGroupInfo const &giB = BasisB[iGrpB];
    FGaussShell
       ShB(giB.iCen, BasisB.Centers[giB.iCen],
          new FGaussBfn(giB.l, FGaussBfn::TYPE_Unnormalized | FGaussBfn::TYPE_Spherical,
-            FScalarArray(&BasisB.Data[giB.iExp],&BasisB.Data[giB.iExp+giB.nExp]),
+            aic::FScalarArray(&BasisB.Data[giB.iExp],&BasisB.Data[giB.iExp+giB.nExp]),
             &BasisB.Data[giB.iCo], giB.nCo ));
 
    FDoublettIntegralFactory

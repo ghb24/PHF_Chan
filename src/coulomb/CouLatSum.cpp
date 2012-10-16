@@ -55,10 +55,6 @@ static double dtrace_vmv(int n_mu, int n_nu, double *mu, double *nu, double *mat
     return s;
 }
 
-/*
- * data flow:
- * -> cells_accumulator -> grids_accumulator ->
- */
 static int cell_offset_by_cell_id(const int cell_id[3])
 {
     int nx = _env->p_super_cell->Size[0];
@@ -66,7 +62,29 @@ static int cell_offset_by_cell_id(const int cell_id[3])
     int nz = _env->p_super_cell->Size[2];
     return cell_id[2] * ny * nz + cell_id[1] * nz + cell_id[0];
 }
-// loop over cells, and trace over mat to get scalar or from scalar to mat,
+static void cell_coord_by_cell_id(const int cell_id[3], double cell_coord[3])
+{
+    cell_coord[0] = cell_id[0] * _env->p_lattice->T[0][0]
+                  + cell_id[1] * _env->p_lattice->T[1][0]
+                  + cell_id[2] * _env->p_lattice->T[2][0];
+    cell_coord[1] = cell_id[0] * _env->p_lattice->T[0][1]
+                  + cell_id[1] * _env->p_lattice->T[1][1]
+                  + cell_id[2] * _env->p_lattice->T[2][1];
+    cell_coord[2] = cell_id[0] * _env->p_lattice->T[0][2]
+                  + cell_id[1] * _env->p_lattice->T[1][2]
+                  + cell_id[2] * _env->p_lattice->T[2][2];
+}
+static void grid_coord_by_grid_id(const int grid_id[3], double grid_coord[3])
+{
+    grid_coord[0] = _env->p_grid3d->grid_x[grid_id[0]];
+    grid_coord[1] = _env->p_grid3d->grid_y[grid_id[1]];
+    grid_coord[2] = _env->p_grid3d->grid_z[grid_id[2]];
+}
+
+/*
+ * data flow:
+ * -> cells_accumulator -> grids_accumulator ->
+ */
 static void cells_accumulator(FCellIter_t func, FuncTerm_t fterm,
                               const int grid_id[3],
                               double *v, double *mat, double *ao)
@@ -107,29 +125,11 @@ static void grids_accumulator(FGridIter_t func,
 }
 
 /************************************************/
-static void cell_coord_by_cell_id(const int cell_id[3], double cell_coord[3])
-{
-    cell_coord[0] = cell_id[0] * _env->p_lattice->T[0][0]
-                  + cell_id[1] * _env->p_lattice->T[1][0]
-                  + cell_id[2] * _env->p_lattice->T[2][0];
-    cell_coord[1] = cell_id[0] * _env->p_lattice->T[0][1]
-                  + cell_id[1] * _env->p_lattice->T[1][1]
-                  + cell_id[2] * _env->p_lattice->T[2][1];
-    cell_coord[2] = cell_id[0] * _env->p_lattice->T[0][2]
-                  + cell_id[1] * _env->p_lattice->T[1][2]
-                  + cell_id[2] * _env->p_lattice->T[2][2];
-}
-static void grid_coord_by_grid_id(const int grid_id[3], double grid_coord[3])
-{
-    grid_coord[0] = _env->p_grid3d->grid_x[grid_id[0]];
-    grid_coord[1] = _env->p_grid3d->grid_y[grid_id[1]];
-    grid_coord[2] = _env->p_grid3d->grid_z[grid_id[2]];
-}
 //FIXME ao_at_grid and ao_unit_cell to generate value of AOs on each grid
 // the grid_coord should be constrained in 0-th cell
 static double ao_at_grid(const int ao_id, const double grid_coord[3])
 {
-    double ao = 0;
+    double ao = 0.01 * ao_id;
     // call grid class
 //    _env->p_bas->FD(eval_basis_fn_on_grid)();
 //        (double *pOut, FORTINT const &nCompSt,
@@ -139,26 +139,30 @@ static double ao_at_grid(const int ao_id, const double grid_coord[3])
     return ao;
 }
 
-static void ao_unit_cell(const double grid_coord[3], const int cell_id[3],
-                         double *ao)
+// for the grid in 0-th cell, value of all AOs in the unit cell
+static void ao_unit_cell(const double grid_coord[3], double *ao)
 {
     for (int i = 0; i < _env->nao_unit_cell; i++) {
-        //ao[i] = ao_at_grid(grid_coord, cell_id);
+        ao[i] = ao_at_grid(i, grid_coord);
     }
 }
-// for the grid in 0-th cell, value of all AOs in the super_cell
+
+// for the grid in 0-th cell, value of all AOs in the super cell
 static void ao_super_cell(const double grid_coord[3], double *ao)
 {
     int cell_id[3];
+    double coord[3];
     for (int ix = 0; ix < _env->p_super_cell->Size[0]; ix++)
         for (int iy = 0; iy < _env->p_super_cell->Size[1]; iy++)
             for (int iz = 0; iz < _env->p_super_cell->Size[2]; iz++) {
                 cell_id[0] = ix;
                 cell_id[1] = iy;
                 cell_id[2] = iz;
-                //grid_cell_coord_by_cell_id(grid_coord, cell_id, coord);
-                //cell_coord_by_cell_id(cell_id, coord);
-                ao_unit_cell(grid_coord, cell_id, ao);
+                cell_coord_by_cell_id(cell_id, coord);
+                coord[0] += grid_coord[0];
+                coord[1] += grid_coord[1];
+                coord[2] += grid_coord[2];
+                ao_unit_cell(grid_coord, ao);
                 ao += _env->nao_unit_cell;
     }
 }
@@ -169,7 +173,7 @@ static int is_cell_far(const int cell_id[3])
 {
     return 0;
     // TODO:
-    //if (cell_id > SUPER_CELL_INFO) {
+    //if (SUPER_CELL_INFO or cutoff_info) {
     //    return 1; // remote cell
     //} else {
     //    return 0;
@@ -183,22 +187,22 @@ static void density_cell0(const int grid_id[3], const int cell_id[3],
 {
     //TODO: call grids_accumulator here to make grids inner-loop
 
-    double grid_coord[3];
-    grid_coord_by_grid_id(grid_id, grid_coord);
     double cell_coord[3];
-    cell_coord_by_cell_id(cell_id, cell_coord);
     double coord[3];
-    coord[0] = grid_coord[0] - cell_coord[0];
-    coord[1] = grid_coord[1] - cell_coord[1];
-    coord[2] = grid_coord[2] - cell_coord[2];
+    grid_coord_by_grid_id(grid_id, coord);
+    cell_coord_by_cell_id(cell_id, cell_coord);
+    coord[0] += -cell_coord[0];
+    coord[1] += -cell_coord[1];
+    coord[2] += -cell_coord[2];
     ao_super_cell(coord, ao);
 
     int n_mu = _env->p_den_mat->nRows;
     int n_nu = _env->p_den_mat->nCols;
     *v += dtrace_vmv(n_mu, n_nu, ao, ao, dmat);
 }
-// constrain grid_id in 0-th cell, v is the value of density at the
-// given grid
+
+// grid_id is constrained in 0-th cell,
+// v is the value of density corresponding to the given grid_id
 static void density_grid_iter(const int grid_id[3],
                                 double *v, double *dmat, double *ao)
 {
@@ -212,14 +216,13 @@ static void density_grid_iter(const int grid_id[3],
 static void coul_matrix_cell_iter(const int grid_id[3], const int cell_id[3],
                                   double *v, double *dmat, double *ao)
 {
-    double grid_coord[3];
-    grid_coord_by_grid_id(grid_id, grid_coord);
     double cell_coord[3];
-    cell_coord_by_cell_id(cell_id, cell_coord);
     double coord[3];
-    coord[0] = grid_coord[0] + cell_coord[0];
-    coord[1] = grid_coord[1] + cell_coord[1];
-    coord[2] = grid_coord[2] + cell_coord[2];
+    grid_coord_by_grid_id(grid_id, coord);
+    cell_coord_by_cell_id(cell_id, cell_coord);
+    coord[0] += cell_coord[0];
+    coord[1] += cell_coord[1];
+    coord[2] += cell_coord[2];
     ao_super_cell(coord, ao);
 
     dmat += cell_offset_by_cell_id(cell_id)
@@ -231,6 +234,7 @@ static void coul_matrix_cell_iter(const int grid_id[3], const int cell_id[3],
     dger_(&n_mu, &n_nu, &vw, ao, &INC1, ao, &INC1, dmat, &n_mu);
 }
 
+// iterate this fn in grids_accumulator to run over all grids in the unit cell
 static void coul_matrix_grid_iter(const int grid_id[3],
                                   double *v, double *dmat, double *ao)
 {
@@ -253,7 +257,7 @@ static void coul_matrix_acc(double *real_space_pot, double *vmat)
  **************************************************
  * global functions
  */
-int init_coul_fft(const FSolidModel& solid, const FOpMatrix& den_mat)
+void init(const FSolidModel& solid, const FOpMatrix& den_mat)
 {
     _env->p_solid = &solid;
     _env->p_super_cell = &solid.SuperCell;
@@ -263,9 +267,9 @@ int init_coul_fft(const FSolidModel& solid, const FOpMatrix& den_mat)
     _env->p_den_mat = &den_mat;
 
     //_env->nao_unit_cell = solid.UnitCell.OrbBasis.nFn;
-    _env->nao_unit_cell = den_mat.nCols;
+    _env->nao_unit_cell = den_mat.nRows;
 
-    double nele = 0; //FIXME = total_number_of_electron_in_one_cell
+    double nele = 0; //FIXME = total_number_of_electron_in_unit_cell
     double vol = solid.UnitCell.Volume;
     set_background_charge(nele/vol);
 
@@ -273,25 +277,24 @@ int init_coul_fft(const FSolidModel& solid, const FOpMatrix& den_mat)
     _env->grid_weight = vol / (_env->p_grid3d->num_x
                              * _env->p_grid3d->num_y
                              * _env->p_grid3d->num_z);
-    return 0;
 }
 
-int del_coul_fft()
+void del()
 {
     delete _env->p_grid3d;
-    return 0;
 }
 
-int set_den_cutoff(const double den_cutoff)
+// TODO: density is obtained by looping over all the unit cells in the
+// super cell, cutoff may help to reduce the number of unit cells to be
+// looped
+void set_den_cutoff(const double den_cutoff)
 {
     cls::_env->den_cutoff = den_cutoff;
-    return 0;
 }
 
-int set_background_charge(const double chg)
+void set_background_charge(const double chg)
 {
     cls::_env->background_chg = chg;
-    return 0;
 }
 
 // grid_id of one cell
@@ -304,19 +307,36 @@ double density_at_grid(const int grid_id[3])
     return den;
 }
 
-void density_unit_cell(double *density)
+//void density_unit_cell(double *density)
+//{
+//    double *ao = new double[_env->p_den_mat->nCols];
+//    cls::grids_accumulator(cls::density_grid_iter,
+//                           density, (double *)&_env->p_den_mat->Data[0], ao);
+//    delete[] ao;
+//}
+
+double density_unit_cell(double *density)
 {
-    double *ao = new double[_env->p_den_mat->nCols];
-    cls::grids_accumulator(cls::density_grid_iter,
-                           density, (double *)&_env->p_den_mat->Data[0], ao);
-    delete[] ao;
+    double nele = 0;
+    int grid_id[3];
+    for (int ix = 0; ix < _env->p_grid3d->num_x; ix++)
+        for (int iy = 0; iy < _env->p_grid3d->num_y; iy++)
+            for (int iz = 0; iz < _env->p_grid3d->num_z; iz++) {
+                grid_id[0] = ix;
+                grid_id[1] = iy;
+                grid_id[2] = iz;
+                *density = density_at_grid(grid_id);
+                nele += _env->grid_weight * *density;
+                density++;
+            }
+    return nele;
 }
 
 // return the coulomb energy
 double coul_matrix(const FSolidModel& solid, const FOpMatrix& den_mat,
                    FOpMatrix& coul_mat)
 {
-    init_coul_fft(solid, den_mat);
+    init(solid, den_mat);
 
     int num_grid_in_unit_cell = _env->p_grid3d->num_x
                               * _env->p_grid3d->num_y
@@ -332,7 +352,7 @@ double coul_matrix(const FSolidModel& solid, const FOpMatrix& den_mat,
     delete[] real_space_density;
     delete[] real_space_pot;
 
-    del_coul_fft();
+    del();
     const int INC1 = 1;
     int n = coul_mat.size();
     int ncells = _env->p_super_cell->Size[0]

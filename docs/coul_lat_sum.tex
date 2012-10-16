@@ -156,6 +156,21 @@ the $\mathbf{k}$-space representation of the potential
   \tilde{V}(\mathbf{k})=\frac{4\pi\tilde{\rho}(\mathbf{k})}{k^2}
   \label{}
 \end{equation}
+$\mathbf{k}$ vector can be represented as a vector in terms of the reciprocal
+basis $\mathbf{b}$
+\begin{equation}
+  \mathbf{k} = \mathbf{b}_1 k_1 + \mathbf{b}_2 k_2 + \mathbf{b}_3 k_3
+  = k_x \mathbf{e}_x + k_y \mathbf{e}_y + k_z \mathbf{e}_z
+  = (k_x, k_y, k_z)
+  \label{}
+\end{equation}
+If the reciprocal basis is non-orthogonal,
+the denominator of \eqref{eq:poisson} is calculated via
+\begin{equation}
+  k^2 = k_x^2 + k_y^2 + k_z^2
+  \label{}
+\end{equation}
+
 Carrying out the inverse FFT, we obtain the real space solution of the Poisson
 equation \eqref{eq:poisson}
 \begin{align}
@@ -254,34 +269,57 @@ grid informations. It includes the
 
 \subsection{API functions}
 \begin{itemize}
-  \item
+\item
 \begin{verbatim}
-double coul_matrix(p_lattice, p_unit_cell, p_super_cell
-        const double *den_mat, double *coul_mat);
+double cls::coul_matrix(const FSolidModel& solid,
+        const FOpMatrix& den_mat, FOpMatrix& coul_mat);
 \end{verbatim}
 \begin{itemize}
-  \item main function to generate the Coulomb matrix.
-  \item input: lattice info (lattice vector, electron number, ...), basis
-    info., density matrix with dims nAO $\times$ nAO $\times$ nUnitCells
+  \item function to get the Coulomb matrix.
+  \item input: \verb$den_mat$ is the density matrix with dims nAO $\times$ nAO
+    $\times$ nUnitCells
   \item output: double array with dims nAO $\times$ nAO $\times$ nUnitCells
-  \item return: Coulomb energy
+  \item return: the energy in terms of the actual electron density $\rho$ and
+    modified potential $\tilde{V}$
+    \begin{equation}
+      \varepsilon = \int_{\mathbf{r}\in C} \rho(\mathbf{r})\tilde{V}(\mathbf{r}) d\mathbf{r}
+      \label{}
+    \end{equation}
 \end{itemize}
 
-\item \verb$void init_den_grid();$
-
-\item \verb$void del_den_grid();$
-
-\item \verb$double density_at_grid(const double *grid_id);$
+\item \verb$void init(const FSolidModel& solid, const FOpMatrix& den_mat);$
+\item \verb$void cls::del();$
+\item \verb$void cls::set_background_charge(const double chg);$
 \begin{itemize}
-  \item the value of density at the given grid.
+  \item replace the default background charge $\frac{N_{e}}{\Omega}$
 \end{itemize}
 
-\item \verb$void cells_accumulator(cells_iter, loop_terminater, );$
+\item \verb$double cls::density_at_grid(const int *grid_id);$
+\begin{itemize}
+  \item value of density on the given grid
+\end{itemize}
+
+\item \verb$double cls::density_unit_cell(const double *density);$
+\begin{itemize}
+  \item value of density on each grid in a unit cell
+\end{itemize}
+
+\item 
+\begin{verbatim}
+void cls::cells_accumulator((*cells_iter)(), (*loop_terminater)(),
+        const int *grid_id, double *v, double *mat, double *ao);
+\end{verbatim}
 \begin{itemize}
   \item loop generator, to loop over cells in the super-cell.
 \end{itemize}
-The example below shows using \verb$cells_looper$ to find the farthest cell in
-the super-cells
+\item 
+\begin{verbatim}
+void cls::grids_accumulator((*grids_iter)(),
+        double *v, double *mat, double *ao);
+\end{verbatim}
+\begin{itemize}
+  \item loop generator, to loop over cells in the super-cell.
+\end{itemize}
 \end{itemize}
 
 \section{Reference}

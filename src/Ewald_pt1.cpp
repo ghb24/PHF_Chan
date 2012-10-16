@@ -89,6 +89,81 @@ void Ewald_pt1::CalcReciprocal(){
 
 }
 
+double Ewald_pt1::NN(){
+
+   int totalCharge = 0;
+   int sumZsquared = 0;
+   for (int cnt=0; cnt<nNuclei; cnt++){
+      totalCharge += nZvals[cnt];
+      sumZsquared += nZvals[cnt]*nZvals[cnt];
+   }
+   double result_pt1 = - (2 * totalCharge * totalCharge) * M_PI / Volume / eta
+                     - 0.5 * sumZsquared * sqrt(eta/M_PI);
+
+   double result_pt2 = 0.0;
+
+   for (int cnt_n1 = 0; cnt_n1<=maxN; cnt_n1++){
+      for (int cnt_n2 = -maxN; cnt_n2<=maxN; cnt_n2++){
+         for (int cnt_n3 = -maxN; cnt_n3<=maxN; cnt_n3++){
+            if (!((cnt_n1==0) && (cnt_n2==0) && (cnt_n3==0))){
+               //This defines \vec{G}. Note that -\vec{G} should also be taken into account here, as the summation over cnt_n1 only does positive values.
+               double Gx = cnt_n1*dGvecs[0 + 3*0] + cnt_n2*dGvecs[1 + 3*0] + cnt_n3*dGvecs[2 + 3*0];
+               double Gy = cnt_n1*dGvecs[0 + 3*1] + cnt_n2*dGvecs[1 + 3*1] + cnt_n3*dGvecs[2 + 3*1];
+               double Gz = cnt_n1*dGvecs[0 + 3*2] + cnt_n2*dGvecs[1 + 3*2] + cnt_n3*dGvecs[2 + 3*2];
+
+               double Gsquared = Gx*Gx + Gy*Gy + Gz*Gz;
+               double factor = exp( - Gsquared / eta );
+               if (factor>=epsilon){
+
+                  for (int cnt1=0; cnt1<nNuclei; cnt1++)
+                     for (int cnt2=0; cnt2<nNuclei; cnt2++){
+
+                        double seed = Gx * (dZloc[cnt1+nNuclei*0] - dZloc[cnt2+nNuclei*0]) + Gy * (dZloc[cnt1+nNuclei*1] - dZloc[cnt2+nNuclei*1])
+                                    + Gz * (dZloc[cnt1+nNuclei*2] - dZloc[cnt2+nNuclei*2]);
+                        result_pt2 += factor * cos( seed ) / Gsquared * nZvals[cnt1] * nZvals[cnt2];
+
+                     }
+               }
+            }
+         }
+      }
+   }
+
+   result_pt2 *= 4 * M_PI / Volume;
+
+   double result_pt3 = 0.0; //--> erfc part
+   //erfc(10) = 10^(-45)
+   int maxNvalForTSum = 3 + ceil(giveNmaxOverR(false)*20/sqrt(eta)) + 0.1;
+
+   std::cout << maxNvalForTSum << std::endl;
+
+   for (int N1=-maxNvalForTSum; N1<=maxNvalForTSum; N1++){
+      for (int N2=-maxNvalForTSum; N2<=maxNvalForTSum; N2++){
+         for (int N3=-maxNvalForTSum; N3<=maxNvalForTSum; N3++){
+            double Tx = N1 * dTvecs[0 + 3*0] + N2 * dTvecs[1 + 3*0] + N3 * dTvecs[2 + 3*0];
+            double Ty = N1 * dTvecs[0 + 3*1] + N2 * dTvecs[1 + 3*1] + N3 * dTvecs[2 + 3*1];
+            double Tz = N1 * dTvecs[0 + 3*2] + N2 * dTvecs[1 + 3*2] + N3 * dTvecs[2 + 3*2];
+
+            for (int cnt1=0; cnt1<nNuclei; cnt1++){
+               for (int cnt2=0; cnt2<nNuclei; cnt2++){
+                  double LengthVec = sqrt( (dZloc[cnt1+3*0] - dZloc[cnt2+3*0] + Tx)*(dZloc[cnt1+3*0] - dZloc[cnt2+3*0] + Tx)
+                                         + (dZloc[cnt1+3*1] - dZloc[cnt2+3*1] + Ty)*(dZloc[cnt1+3*1] - dZloc[cnt2+3*1] + Ty)
+                                         + (dZloc[cnt1+3*2] - dZloc[cnt2+3*2] + Tz)*(dZloc[cnt1+3*2] - dZloc[cnt2+3*2] + Tz) );
+                  if (!((N1==0) && (N2==0) && (N3==0) && (cnt1==cnt2))){
+                     result_pt3 += 0.5 * erfc( LengthVec * sqrt(eta) * 0.5 ) / LengthVec * nZvals[cnt1] * nZvals[cnt2];
+                  }
+               }
+            }
+         }
+      }
+   }
+
+   std::cout << "NN\t" << result_pt1 + result_pt2 + result_pt3 << std::endl;
+
+   return (result_pt1 + result_pt2 + result_pt3);
+
+}
+
 void Ewald_pt1::eN(double * result, double zeta_A, int lmax_A, double Ax, double Ay, double Az, double zeta_B, int lmax_B, double Bx, double By, double Bz){
  
    double zeta = zeta_A+zeta_B;
@@ -245,7 +320,10 @@ void Ewald_pt1::FillCosSinOneElectron(double * element_cos, double * element_sin
 
 }
 
-double Ewald_pt1::giveNmaxOverR(){
+double Ewald_pt1::giveNmaxOverR(bool useG){
+
+   //standard useG = true
+   //if false: use Tvecs
 
    /***
       (m1 G1 + m2 G2 + m3 G3) (n1 G1 + n2 G2 + n3 G3) = m^(dagger) G n
@@ -257,7 +335,10 @@ double Ewald_pt1::giveNmaxOverR(){
    double * metric = new double[3*3];
    for (int cnt=0; cnt<3; cnt++)
       for (int cnt2=cnt; cnt2<3; cnt2++){
-         metric[cnt+3*cnt2] = dGvecs[cnt+3*0]*dGvecs[cnt2+3*0]+dGvecs[cnt+3*1]*dGvecs[cnt2+3*1]+dGvecs[cnt+3*2]*dGvecs[cnt2+3*2];
+         if (useG)
+            metric[cnt+3*cnt2] = dGvecs[cnt+3*0]*dGvecs[cnt2+3*0]+dGvecs[cnt+3*1]*dGvecs[cnt2+3*1]+dGvecs[cnt+3*2]*dGvecs[cnt2+3*2];
+         else
+            metric[cnt+3*cnt2] = dTvecs[cnt+3*0]*dTvecs[cnt2+3*0]+dTvecs[cnt+3*1]*dTvecs[cnt2+3*1]+dTvecs[cnt+3*2]*dTvecs[cnt2+3*2];
          metric[cnt2+3*cnt] = metric[cnt+3*cnt2];
       }
 

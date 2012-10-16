@@ -181,8 +181,10 @@ subroutine ExchangeSum(ExEnergy,Exchange,Lattice,UnitCell,Supercell,Density)
                                             strides = (/ nSS_sq, 1, nSS_sq*nMu, SupercellFns/) ! nSS x nSS x nMu x nLam
                                             !write(6,*) "Loop over nu, sigma: ",nu,sig,ConvergedInts(nu,sig,1,1),sig_shell,lam_shell
                                             !write(6,*) "TransVec: ",TransVec(:,:)
-                                            call eval_group_int2e_tra_incr(ConvergedInts(nu,sig,1,1),strides(1),-0.5_dp,mu_shell-1,TransVec(1,1),    &
-                                                nu_shell-1,TransVec(1,2),lam_shell-1,TransVec(1,3),sig_shell-1,TransVec(1,4),Supercell%OrbBasis, ic)
+                                            call eval_group_int2e_tra_incr(ConvergedInts(nu,sig,1,1),   &
+                                                        strides(1),-0.5_dp,mu_shell-1,TransVec(1,1),    &
+                                                        nu_shell-1,TransVec(1,2),lam_shell-1,TransVec(1,3), &
+                                                        sig_shell-1,TransVec(1,4),Supercell%OrbBasis, ic)
 
                                             !write(6,*) "Loop over nu, sigma: ",nu,sig
                                             !call flush(6)

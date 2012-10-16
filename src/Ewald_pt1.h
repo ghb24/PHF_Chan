@@ -30,7 +30,7 @@ class Ewald_pt1{
       //count_A is related to the unnormalized angular momentum basis function (x - A_x)^nx * (y - A_y)^ny * (z - A_z)^nz * exp(-eta * (vec{r} - vec{A})^2)
       //There are nTotal_A = (lmax+1)*(lmax+2)/2 such angular momentum basis functions. Result should hence be of size nTotal_A*nTotal_B (can be larger too)
       //The last term of Eq. (15), including the -4 pi / Omega, sandwiched between unnormalized ang. mom. basisfunctions (count_A,count_B) is stored in result[count_A+nTotal_A*count_B]. Note that there should already be memory allocated for result!!
-      void eN(double * result, double zeta_A, double lmax_A, double Ax, double Ay, double Az, double zeta_B, double lmax_B, double Bx, double By, double Bz);
+      void eN(double * result, double zeta_A, int lmax_A, double Ax, double Ay, double Az, double zeta_B, int lmax_B, double Bx, double By, double Bz);
 
    private:
       

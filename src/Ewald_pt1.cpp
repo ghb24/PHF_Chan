@@ -89,7 +89,7 @@ void Ewald_pt1::CalcReciprocal(){
 
 }
 
-void Ewald_pt1::eN(double * result, double zeta_A, double lmax_A, double Ax, double Ay, double Az, double zeta_B, double lmax_B, double Bx, double By, double Bz){
+void Ewald_pt1::eN(double * result, double zeta_A, int lmax_A, double Ax, double Ay, double Az, double zeta_B, int lmax_B, double Bx, double By, double Bz){
  
    double zeta = zeta_A+zeta_B;
 

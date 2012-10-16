@@ -73,3 +73,36 @@ void SymTrans4(TArray<double>& DataAO, TArray<double>& DataSO, const FSolidModel
 {
     DataAO = DataSO; // suppose C1
 }
+
+// Compute symmetry-unique atom list from input data and return # of symmetry-unique atoms
+uint GetSymUniqueAtoms(const TArray<uint>& Elements, const TArray<FVector3>& Coords, TArray<uint>& SymUniqueList)
+{
+    uint nAtoms = Elements.size();
+    uint nSymAtoms = 0;
+    SymUniqueList.clear();
+    SymUniqueList.resize(nAtoms);
+    // initialize: every atom is unique
+    for(uint iAtom = 0; iAtom < nAtoms; ++iAtom) SymUniqueList[iAtom] = 1;
+
+    for(uint iAtom = 0; iAtom < nAtoms; ++iAtom) {
+      if(SymUniqueList[iAtom] == 0) continue;
+      nSymAtoms++;
+//    for(uint iSOp = 0; iSOp < nSOps; ++iSOp) {
+        // transforming by point group symmetry-operator
+//      FVector3 iEqCoord = SOp[iSOp](Coords[iAtom]);
+        FVector3 iEqCoord = Coords[iAtom]; // suppose C1, SymOp_E
+
+        for(uint jAtom = iAtom + 1; jAtom < nAtoms; ++jAtom) {
+          if(SymUniqueList[jAtom] == 0) continue;
+
+          if(Elements[iAtom] == Elements[jAtom] && IsSymmetric(Coords[jAtom], iEqCoord)) {
+            SymUniqueList[iAtom]++;
+            SymUniqueList[jAtom]--;
+          }
+        }
+//    }
+    }
+    return nSymAtoms;
+}
+
+

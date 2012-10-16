@@ -42,6 +42,8 @@ void SymTrans2(TArray<double>& DataAO, TArray<double>& DataSO, const FSolidModel
 void SymTrans3(TArray<double>& DataAO, TArray<double>& DataSO, const FSolidModel& Solid, const FSymmetry& sym);
 void SymTrans4(TArray<double>& DataAO, TArray<double>& DataSO, const FSolidModel& Solid, const FSymmetry& sym);
 
+uint GetSymUniqueAtoms(const TArray<uint>& Elements, const TArray<FVector3>& Coords, TArray<uint>& SymUniqueList);
+
 #endif
 
 /*

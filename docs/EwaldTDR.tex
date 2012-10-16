@@ -85,12 +85,19 @@ All terms on the r.h.s. can be sandwiched between gaussian basis functions analy
 \end{eqnarray}
 These integrals can be seperated in the three cartesian coordinates. By recombining the terms corresponding to $\mathbf{G}$ and $-\mathbf{G}$, it is possible to derive recursion relations per cartesian coordinate for the cosine and sine parts of the phase operator (they mix). Together with the phase factor due to the nuclear positions, this then gives a real expression that enters the sum, which now only goes over half the reciprocal lattice vectors.
 \section{The nuclear-nuclear term}
-The nuclear-nuclear term (per supercell) is given by
+Reconsider the direct electron-electron and electron-nuclear energy. With the densities $\tilde{\rho}_e(\vec{r})$ and $\tilde{\rho}_N(\vec{r})$, the following approximation is made in the program:
+\begin{equation}
+\tilde{E}_{direct} + \tilde{E}_{eN} = \frac{1}{2} \int \int \frac{\rho(\vec{r}) \tilde{\rho}_e(\vec{r}')}{\mid \vec{r} - \vec{r}' \mid} d\vec{r} d\vec{r}' + \int \int \frac{\rho(\vec{r}) \tilde{\rho}_N(\vec{r}')}{\mid \vec{r} - \vec{r}' \mid} d\vec{r} d\vec{r}'
+\end{equation}
+Whereas for the HF equations the additional constant backgrounds cancel, this is no longer the case. The exact remaining electrostatic energy is 
+\begin{equation}
+\tilde{E}_{remainder} = \frac{1}{2} \int \int \frac{\rho_N(\vec{r} + \vec{\epsilon}) \rho_N(\vec{r}')}{\mid \vec{r} - \vec{r}' + \vec{\epsilon} \mid} d\vec{r} d\vec{r}' - \frac{1}{2} \sum\limits_A \frac{Z_A^2}{\mid \vec{\epsilon} \mid} - \frac{1}{2} \frac{N}{\Omega} \int \int \frac{\rho(\vec{r})}{\mid \vec{r} - \vec{r}' \mid} d\vec{r} d\vec{r}' \label{koekoek}
+\end{equation}
+with $\rho_N(\vec{r}) = - \sum\limits_A Z_A \delta(\vec{r} - \vec{r}_A)$ and $\vec{\epsilon}$ going to zero. In order to deal with the remaining term separately, we can make the approximation $\rho(\vec{r}) = \rho_N(\vec{r})$ in the last term, and call this approximation the nuclear-nuclear term. The nuclear-nuclear term (per supercell) is then given by
 \begin{equation}
 W = \sum\limits_{\alpha\beta} \frac{Z_{\alpha}Z_{\beta}}{2} \left( \frac{4\pi}{\Omega} \sum\limits_{\mathbf{G} \neq 0} \frac{e^{i \mathbf{G}.(\vec{r}_{\beta} - \vec{r}_{\alpha})} e^{-G^2/\eta}}{G^2} - \sqrt{\frac{\eta}{\pi}} \delta_{\alpha\beta} + \sum\limits_{\mathbf{T}}^{'} \frac{\text{erfc}\left( \frac{\sqrt{\eta}}{2} \mid \vec{r}_{\beta} - \vec{r}_{\alpha} + \mathbf{T} \mid \right)}{\mid \vec{r}_{\beta} - \vec{r}_{\alpha} + \mathbf{T} \mid}  \right) - \frac{4 \pi N^2}{2 \Omega \eta} \label{gjgj3}
 \end{equation}
-where the ' denotes that the self-interaction term is explicitly kept out for the case $\mathbf{T} = 0$.
+where the ' denotes that the self-interaction term is explicitly kept out for the case $\mathbf{T} = 0$.\\
 
-
-
+Note that in Eq. \eqref{koekoek}, the divergence of the first and third terms cancel due to charge neutrality. We could therefore use this equation to calculate the exact remaining energy when the HF cycle has reached convergence (not implemented).
 \end{document}

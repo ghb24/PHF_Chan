@@ -6,7 +6,8 @@
 #include <iostream>
 #include <assert.h>
 #include "CouLatSum.h"
-#include "grid_3d_class.h"
+#include "nfft.h"
+//#include "grid_3d_class.h"
 //#include "../lib/CxAlgebra.h"
 #include "fblas.h"
 

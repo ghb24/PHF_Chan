@@ -104,7 +104,10 @@ subroutine ExchangeSum(ExEnergy,Exchange,Lattice,UnitCell,Supercell,Density)
     !Want Rc .le. L/2
     !Calculate L for cubic cell - just take one direction. Won't be right in general
     L = sqrt(Supercell%T(1,1)**2 + Supercell%T(2,1)**2 + Supercell%T(3,1)**2)
+    write(6,*) "Length of supercell is approximately: ",L
     Rc = L/2.0_dp 
+    write(6,*) "Truncated coulomb potential kernel cutoff: ",Rc
+
     ic = create_integral_context(0,0,1.0e-10_dp)
     !Plain coulomb
     !call assign_integral_kernel(ic,3,0,0)  !3 is for coulomb kernal

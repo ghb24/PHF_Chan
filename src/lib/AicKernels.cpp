@@ -16,6 +16,7 @@
  * along with bfint (LICENSE). If not, see http://www.gnu.org/licenses/
  */
 
+#include <math.h>
 #include <cmath>
 #ifndef AIC_LOCAL_INCLUDES
    #define MACHINES_H_DEFINES_ONLY
@@ -82,7 +83,7 @@ void FTruncCoulombKernel::EvalGm( double *pOut, double rho, double T, uint MaxM,
     // pi^(3/2)(2 erf(sqrt(T)) + erf(Rcp-sqrt(T)) - erf(Rcp+sqrt(T)))/2 rho sqrt(T)
     double
         Rcp = Rc*std::sqrt(Rc), RtT = std::sqrt(T);
-    pOut[i]?? = M_PI**(3./2.)*(2 * std::erf(RtT) + std::erf(Rcp-RtT) - std::erf(Rcp+RtT))/(2 * rho * RtT)
+    pOut[0] = std::pow(M_PI,(3./2.))*(2 * erf(RtT) + erf(Rcp-RtT) - erf(Rcp+RtT))/(2 * rho * RtT);
 };
 
 void FErfcCoulombKernel::EvalGm( double *pOut, double rho, double T, uint MaxM, double Prefactor ) const

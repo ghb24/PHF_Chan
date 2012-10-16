@@ -130,7 +130,7 @@ extern "C" {
       INTKERNEL_Kinetic = 2,
       INTKERNEL_Coulomb = 3,
       INTKERNEL_Coulomb_LongRange_Erf = 4,  // pParamsF[0]: Screening length
-      INTKERNEL_Coulomb_ShortRange_Erfc = 5 // pParamsF[0]: Screening length
+      INTKERNEL_Coulomb_ShortRange_Erfc = 5, // pParamsF[0]: Screening length
       INTKERNEL_Coulomb_Truncated = 6   // pParamsF[0]: Rc
    };
 

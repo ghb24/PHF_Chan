@@ -142,6 +142,17 @@ private:
       m_Omega;
 };
 
+// truncated coulomb potential
+struct FTruncCoulombKernel : public FIntegralKernel
+{
+    explicit FTruncCoulombKernel( double Rc_ ) : Rc(Rc_) {};
+    char const *GetName() const { return "Trunc 1/r"; } // override
+    void EvalGm( double *pOut, double rho, double T, uint MaxM, double Prefactor) const; // override
+    ~FTruncCoulombKernel();
+private:
+    double Rc;
+};
+
 // erfc(omega r)/r  (short-range coulomb)
 struct FErfcCoulombKernel : public FIntegralKernel
 {

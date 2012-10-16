@@ -6,7 +6,7 @@
 
 using std::ostream;
 
-#include "Matrix.h"
+#include "BlockMatrix.h"
 
 class DIIS;
 
@@ -16,7 +16,7 @@ class DIIS;
  * This class RSPM was written for restricted single particle matrices. It inherits from the class Matrix and expands it with
  * specific memberfunction and a knowledge of the nr of sp orbitals and particles. The Fock Matrix and the 1DM are part of this class.
  */
-class RSPM : public Matrix {
+class RSPM : public BlockMatrix {
 
    /**
     * Output stream operator overloaded, the usage is simple, if you want to print to a file, make an
@@ -40,7 +40,7 @@ class RSPM : public Matrix {
       //destructor
       virtual ~RSPM();
 
-      using Matrix::operator=;
+      using BlockMatrix::operator=;
 
       int gN() const;
 
@@ -50,21 +50,28 @@ class RSPM : public Matrix {
 
       void construct_Fock(const RSPM &);
 
-      void update(const RSPM &);
+      void construct_sp_ham();
+
+      void update(const BlockVector &,const RSPM &);
 
       void relax(const DIIS &);
 
-      static void init(int,int);
+      static void init(int,int,int*);
+
+      static void clear();
 
       double energy() const;
 
    private:
 
-      //!dimension of single particle space
-      static int M;
-
       //!nr of particles
       static int N;
+
+      //!nr of blocks
+      static int nr;
+
+      //!dimensions of the blocks
+      static int *dim;
 
 };
 

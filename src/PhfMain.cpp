@@ -22,8 +22,8 @@ extern "C" {
 }
 
 //some "C-style" function definitions which will have to be written
-void initialize(double *rdm);
-void construct_Fock(double *Fock,double *rdm);
+void initialize(double ***rdm);
+void construct_Fock(double ***Fock,double ***rdm);
 
 int main(int argc, char *argv[])
 {
@@ -113,22 +113,30 @@ int main(int argc, char *argv[])
 
    xout << format("wheee!!") << std::endl;
 
-   //first you have to set the dimension of the Fock matrix and density matrix
-   int M = 64;
+   //define the number of blocks
+   int nr = 10;
+
+   //define the dimension of the different blocks
+   int *dim = new int [nr];
+
+   for(int i = 0;i < nr;++i)
+      dim[i] =  10;
 
    //and the number of particles
    int N = 64;
 
+   RSPM::init(N,nr,dim); 
+
    //this function initializes the RSPM class given the correct dimensions
-   RSPM::init(M,N);
+   RSPM::init(N,nr,dim);
 
    //initialize spm: this function doens't exist yet, as input I expect a 
    RSPM spm;
-   initialize(spm.gMatrix()[0]);
+   initialize(spm.gBlockMatrix());
 
    //some variables needed in scf loop
    RSPM copy,F;
-   Vector v(M);
+   BlockVector v(nr,dim);
 
    DIIS diis;
 
@@ -144,7 +152,7 @@ int main(int argc, char *argv[])
       ++iter;
 
       //construct the fock matrix
-      construct_Fock(F.gMatrix()[0],spm.gMatrix()[0]);
+      construct_Fock(F.gBlockMatrix(),spm.gBlockMatrix());
 
       //add it to the diis object
       diis.push_F(F);
@@ -165,7 +173,7 @@ int main(int argc, char *argv[])
 
       copy = spm;
 
-      spm.update(F);
+      spm.update(v,F);
 
       copy -= spm;
 
@@ -179,7 +187,7 @@ int main(int argc, char *argv[])
    cout << "single-particle spectrum is:" << endl;
    cout << endl;
 
-   construct_Fock(F.gMatrix()[0],spm.gMatrix()[0]);
+   construct_Fock(F.gBlockMatrix(),spm.gBlockMatrix());
    v.diagonalize(F);
 
    cout << v << endl;
@@ -195,7 +203,7 @@ int main(int argc, char *argv[])
  * Make sure everything is done in an orthogonal basis
  * This object rdm is structured as a fortran style matrix, i.e. column-major order storage.
  */
-void initialize(double *rdm){
+void initialize(double ***rdm){
 
 }
 
@@ -204,7 +212,7 @@ void initialize(double *rdm){
  * Make sure everything is done in an orthogonal basis
  * This object A is structured as a fortran style matrix, i.e. column-major order storage.
  */
-void construct_Fock(double *Fock,double *rdm){
+void construct_Fock(double ***Fock,double ***rdm){
 
 }
 

@@ -18,7 +18,7 @@ void GetSymmetry(const FSolidModel& Solid, FSymmetry& sym)
     uint nAtoms = Solid.UnitCell.Coords.size();
     uint nBasis = Solid.UnitCell.OrbBasis.nFn;
     // default
-    sym.PGroup = Pg_C1;
+    sym.PointGroup = 0x0001; // suppose C1, only (SOP_E & 0x01) gives true
     sym.nRep   = 1;
     sym.nSO[0] = nBasis;
     sym.SymAtoms.resize(nAtoms);

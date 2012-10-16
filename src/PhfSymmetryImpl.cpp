@@ -96,16 +96,45 @@ bool IsSymmetric(const FVector3& q1, const FVector3& q2)
 
 uint GetSymTable(const FVector3& q1, const FVector3& q2)
 {
-    uint table = 0x01;
+    uint table = 0x0001;
     return table;
 }
 
 uint GetSymLattice(const FLattice& lattice)
 {
-    uint table = 0x01;
+    uint table = 0x0001;
     return table;
 }
 
+/*
 
+void GetSymUniqueAtoms(const TArray<FVector3>& Coords, const TArray<std::string>& Elements, Symmetry& sym)
+{
+    sym.SymAtoms.clear();
+    sym.SymAtoms.reserve(nAtoms);
 
+    TArray<FORTINT> SymUniqueList;
+    SymUniqueList.resize(nAtoms);
+    // initialize: every atom is unique
+    for(uint iAtom = 0; iAtom < nAtoms; ++iAtom) SymUniqueList[iAtom] = 1;
 
+    for(uint iAtom = 0; iAtom < nAtoms; ++iAtom) {
+      if(SymUniqueList[iAtom] == 0) continue;
+      sym.SymAtoms.push_back(iAtom);
+      for(uint iSOp = 0; iSOp < nSOps; ++iSOp) {
+        // transforming by point group symmetry-operator
+        FVector3 iEqCoord = SOp[iSOp](Coords[iAtom]);
+
+        for(uint jAtom = iAtom + 1; jAtom < nAtoms; ++jAtom) {
+          if(SymUniqueList[jAtom] == 0) continue;
+
+          if(std::strcmp(Elements[iAtom], Elements[jAtom]) == 0 && IsSymmetric(Coords[jAtom], iEqCoord))
+            SymUniqueList[iAtom]++;
+            SymUniqueList[jAtom]--;
+          }
+        }
+      }
+    }
+}
+
+*/

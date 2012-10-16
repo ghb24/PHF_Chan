@@ -10,30 +10,18 @@
 #include "PhfTypes.h"
 
 /*
- * enumeration of point groups (only Abelian group)
- * numbers are temporary
- */
-enum FPointGroup
-{
-    Pg_C1  = 0,
-    Pg_CS  = 1,
-    Pg_CI  = 2,
-    Pg_C2  = 3,
-    Pg_D2  = 4,
-    Pg_C2V = 5,
-    Pg_C2H = 6,
-    Pg_D2H = 7
-};
-
-/*
  * Simple symmetry class which might be usable from FORTRAN
  * other information is utilized from FSolidModel
+ *
+ * Otherwise, can UnitCell be defined as Symmetry-Unique ?
+ * And, can symmetry-operation be implemented in construction of SuperCell, too ?
+ * In such case, loop over symmetry-unique atoms is just considered loop over atoms in UnitCell
  */
 struct FSymmetry
 {
-    // point group : controlled by integer number
-    FPointGroup
-        PGroup;
+    // point group : controlled by unsigned integer number
+    FORTINT
+        PointGroup;
 
     // # of irreducible representation : 1 ~ 8
     FORTINT

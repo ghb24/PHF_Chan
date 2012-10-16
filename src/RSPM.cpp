@@ -35,6 +35,7 @@ void RSPM::clear(){
 
 }
 
+// takes in the number of blocks and an array of dimensions
 RSPM::RSPM() : BlockMatrix(nr,dim) { }
 
 /**

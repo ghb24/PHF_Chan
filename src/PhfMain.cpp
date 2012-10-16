@@ -140,7 +140,7 @@ int main(int argc, char *argv[])
 
    DIIS diis;
 
-   RSPM commutator;
+   RSPM commutator; //RSPM inherets from a block matrix class
 
    double convergence = 1.0;
 

@@ -11,6 +11,8 @@
 using namespace ct;
 using boost::format;
 
+#include "Ewald_pt1.h"
+
 
 extern "C" {
     void environment_report_();
@@ -104,6 +106,21 @@ int main(int argc, char *argv[])
    }
 
    xout << format("wheee!!") << std::endl;
+
+
+   if (0) {
+
+      double eta = 1.2;
+      Ewald_pt1 MrEwald = Ewald_pt1(eta);
+      int lmax = 1;
+      int dimlin = (lmax+1)*(lmax+2)/2;
+      double * result = new double[dimlin*dimlin];
+      MrEwald.eN(result, 1.1, lmax, 0.0, 0.0, 0.0, 1.2, lmax, 2.0, 1.9, 0.7); //Random numbers to do compile and run test.
+      delete [] result;
+      MrEwald.NN();
+
+   }
+
 
    // test call of fortran
    //double ExchangeEnergy;

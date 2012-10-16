@@ -20,7 +20,7 @@ Ewald_pt1::Ewald_pt1(double etaval){ //FIXME
    this->nNuclei = 2;
    this->nZvals = new int[this->nNuclei];
    this->nZvals[0] = 1;
-   this->nZvals[1] = 1;
+   this->nZvals[1] = 2;
    this->dTvecs = new double[9];
    double a_pm = 4.0;
    this->dTvecs[0 + 3*0] = a_pm/2; //vec1 (c++:0) xco (c++:0)
@@ -33,9 +33,9 @@ Ewald_pt1::Ewald_pt1(double etaval){ //FIXME
    this->dTvecs[2 + 3*1] = 0.0;
    this->dTvecs[2 + 3*2] = a_pm/2;
    this->dZloc = new double[this->nNuclei * 3];
-   this->dZloc[0 + nNuclei*0] = this->dZloc[0 + 3*1] = this->dZloc[0 + 3*2] = 0.0;
+   this->dZloc[0 + nNuclei*0] = this->dZloc[0 + nNuclei*1] = this->dZloc[0 + nNuclei*2] = 0.0;
    this->dZloc[1 + nNuclei*0] = a_pm/2;
-   this->dZloc[1 + nNuclei*1] = this->dZloc[1 + 3*2] = 0.0;
+   this->dZloc[1 + nNuclei*1] = this->dZloc[1 + nNuclei*2] = 0.0;
 
    //This part is independent from any kind of input. It only depends on whether Tvecs is filled in correctly. Not that we use the Gi.Tj = 2 pi delta_ij convention.
    this->Volume = CalcSignedVolume();
@@ -52,6 +52,11 @@ Ewald_pt1::Ewald_pt1(double etaval){ //FIXME
 
    std::cout << radius << "\t" << maxN << std::endl;
 
+   std::cout << "Z\t[loc]" << std::endl;
+   for (int cnt=0; cnt<nNuclei; cnt++){
+      std::cout << nZvals[cnt] << "\t" << dZloc[cnt + nNuclei*0] << "\t" << dZloc[cnt + nNuclei*1] << "\t" << dZloc[cnt + nNuclei*2] << std::endl;
+   }
+
 }
 
 Ewald_pt1::~Ewald_pt1(){
@@ -62,6 +67,7 @@ Ewald_pt1::~Ewald_pt1(){
    delete [] dGvecs;
 
 }
+
 
 double Ewald_pt1::CalcSignedVolume(){
 
@@ -146,9 +152,9 @@ double Ewald_pt1::NN(){
 
             for (int cnt1=0; cnt1<nNuclei; cnt1++){
                for (int cnt2=0; cnt2<nNuclei; cnt2++){
-                  double LengthVec = sqrt( (dZloc[cnt1+3*0] - dZloc[cnt2+3*0] + Tx)*(dZloc[cnt1+3*0] - dZloc[cnt2+3*0] + Tx)
-                                         + (dZloc[cnt1+3*1] - dZloc[cnt2+3*1] + Ty)*(dZloc[cnt1+3*1] - dZloc[cnt2+3*1] + Ty)
-                                         + (dZloc[cnt1+3*2] - dZloc[cnt2+3*2] + Tz)*(dZloc[cnt1+3*2] - dZloc[cnt2+3*2] + Tz) );
+                  double LengthVec = sqrt( (dZloc[cnt1+nNuclei*0] - dZloc[cnt2+nNuclei*0] + Tx)*(dZloc[cnt1+nNuclei*0] - dZloc[cnt2+nNuclei*0] + Tx)
+                                         + (dZloc[cnt1+nNuclei*1] - dZloc[cnt2+nNuclei*1] + Ty)*(dZloc[cnt1+nNuclei*1] - dZloc[cnt2+nNuclei*1] + Ty)
+                                         + (dZloc[cnt1+nNuclei*2] - dZloc[cnt2+nNuclei*2] + Tz)*(dZloc[cnt1+nNuclei*2] - dZloc[cnt2+nNuclei*2] + Tz) );
                   if (!((N1==0) && (N2==0) && (N3==0) && (cnt1==cnt2))){
                      result_pt3 += 0.5 * erfc( LengthVec * sqrt(eta) * 0.5 ) / LengthVec * nZvals[cnt1] * nZvals[cnt2];
                   }

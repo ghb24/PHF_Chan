@@ -1,5 +1,5 @@
 /*
- * File: GridDen.cc
+ * File: CouLatSum.cpp
  * Author: Qiming Sun <osirpt.sun@gmail.com>
  */
 
@@ -257,7 +257,7 @@ static void coul_matrix_acc(double *real_space_pot, double *vmat)
  **************************************************
  * global functions
  */
-void init(const FSolidModel& solid, const FOpMatrix& den_mat)
+void init_env(const FSolidModel& solid, const FOpMatrix& den_mat)
 {
     _env->p_solid = &solid;
     _env->p_super_cell = &solid.SuperCell;
@@ -269,7 +269,11 @@ void init(const FSolidModel& solid, const FOpMatrix& den_mat)
     //_env->nao_unit_cell = solid.UnitCell.OrbBasis.nFn;
     _env->nao_unit_cell = den_mat.nRows;
 
-    double nele = 0; //FIXME = total_number_of_electron_in_unit_cell
+    double nele = 0;
+    for (TArray<FORTINT>::const_iterator n = solid.UnitCell.Elements.begin();
+         n != solid.UnitCell.Elements.begin(); n++) {
+        nele += *n;
+    }
     double vol = solid.UnitCell.Volume;
     set_background_charge(nele/vol);
 
@@ -279,7 +283,7 @@ void init(const FSolidModel& solid, const FOpMatrix& den_mat)
                              * _env->p_grid3d->num_z);
 }
 
-void del()
+void del_env()
 {
     delete _env->p_grid3d;
 }
@@ -336,7 +340,7 @@ double density_unit_cell(double *density)
 double coul_matrix(const FSolidModel& solid, const FOpMatrix& den_mat,
                    FOpMatrix& coul_mat)
 {
-    init(solid, den_mat);
+    init_env(solid, den_mat);
 
     int num_grid_in_unit_cell = _env->p_grid3d->num_x
                               * _env->p_grid3d->num_y
@@ -346,13 +350,13 @@ double coul_matrix(const FSolidModel& solid, const FOpMatrix& den_mat,
     // calculate the density
     density_unit_cell(real_space_density);
     // FFT Poisson solver
-    //TODO: poisson_solver(real_space_density, real_space_pot);
+    poisson_kspace_solver(real_space_density, real_space_pot, _env->p_grid3d);
     // Coulomb matrix
     coul_matrix_acc(real_space_pot, &coul_mat[0]);
     delete[] real_space_density;
     delete[] real_space_pot;
 
-    del();
+    del_env();
     const int INC1 = 1;
     int n = coul_mat.size();
     int ncells = _env->p_super_cell->Size[0]

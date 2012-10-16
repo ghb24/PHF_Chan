@@ -16,8 +16,8 @@ typedef void (*FGridIter_t)(const int *grid_id,
 typedef int (*FuncTerm_t)(const int *);
 
 
-void init(const FSolidModel& solid, const FOpMatrix& den_mat);
-void del();
+void init_env(const FSolidModel& solid, const FOpMatrix& den_mat);
+void del_env();
 
 //
 void set_background_charge(const double chg);

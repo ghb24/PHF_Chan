@@ -25,8 +25,15 @@ void GetSymmetry(const FSolidModel& Solid, FSymmetry& sym);
  * SymTrans3 : [ AO(SUPER) x AO(SUPER) ] -> [ SO(SUPER) x SO(SUPER) ]
  * SymTrans4 : [ SO(SUPER) x SO(SUPER) ] -> [ AO(SUPER) x AO(SUPER) ]
  *
- * + DataAO : data matrix spanned by AO (Real(nAO*nAO), in/out)
- * + DataSO : data matrix spanned by SO (Real(nSO*nSO), in/out)
+ * + DataAO : data matrix spanned by AO (Real(nAO x nAO), in/out)
+ * + DataSO : data matrix spanned by SO (Real(nSO x nSO, nRep), in/out)
+ *          : stored by 1D-array can be accessed,
+ *          :     uint pos = 0;
+ *          :     loop iRep = 0 to nRep
+ *          :       loop iRow = 0 to sym.nSO[iRep]
+ *          :         loop iCol = 0 to sym.nSO[iRep]
+ *          :           M[iRep, iRow, iCol] = DataSO[pos++];
+ *
  * + Solid  : SolidModel object in "PhfSolidDef.h"
  * + sym    : Symmetry object in "PhfSymmetry.h"
  */
@@ -35,8 +42,9 @@ void SymTrans2(TArray<double>& DataAO, TArray<double>& DataSO, const FSolidModel
 void SymTrans3(TArray<double>& DataAO, TArray<double>& DataSO, const FSolidModel& Solid, const FSymmetry& sym);
 void SymTrans4(TArray<double>& DataAO, TArray<double>& DataSO, const FSolidModel& Solid, const FSymmetry& sym);
 
+#endif
+
 /*
  * Taking whole information about super-cell (FSolidModel) as an input looks less efficient
  * but, probably better to avoid any confliction an/or complicated dependency (?)
  */
-#endif

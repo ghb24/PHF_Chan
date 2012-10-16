@@ -25,6 +25,7 @@ void GetSymmetry(const FSolidModel& Solid, FSymmetry& sym)
     for(uint iAtom = 0; iAtom < nAtoms; ++iAtom) {
         sym.SymAtoms[iAtom] = iAtom;
     }
+    GetTSymIndex(Solid.SuperCell, sym.TSymIndex);
 };
 
 /*
@@ -45,9 +46,6 @@ void SymTrans1(TArray<double>& DataAO, TArray<double>& DataSO, const FSolidModel
 // SymTrans2 : Packed-AO(UNIT) -> SO(SUPER)
 void SymTrans2(TArray<double>& DataAO, TArray<double>& DataSO, const FSolidModel& Solid, const FSymmetry& sym)
 {
-    TArray<FORTINT> TSymMatrix;
-    GetTransSymMatrix(Solid.SuperCell, TSymMatrix);
-
     uint SCellSize = Solid.SuperCell.Ts.size();
     uint nUCellBfn = Solid.UnitCell.OrbBasis.nFn;
     uint nSCellBfn = Solid.SuperCell.OrbBasis.nFn;
@@ -58,7 +56,7 @@ void SymTrans2(TArray<double>& DataAO, TArray<double>& DataSO, const FSolidModel
     DataSO.insert(DataSO.end(), DataAO.begin(), DataAO.end()); // suppose C1
     for(uint iTs = 1; iTs < SCellSize; ++iTs) {
       for(uint jTs = 0; jTs < SCellSize; ++jTs) {
-          uint iOffBfn = nUCellBfn * TSymMatrix[iTs * SCellSize + jTs];
+          uint iOffBfn = nUCellBfn * sym.TSymIndex[iTs * SCellSize + jTs];
           DataSO.insert(DataSO.end(), DataAO.begin() + iOffBfn, DataAO.begin() + iOffBfn + nUCellBfn);
       }
     }

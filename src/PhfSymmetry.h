@@ -17,11 +17,12 @@ enum FPointGroup
 {
     Pg_C1  = 0,
     Pg_CS  = 1,
-    Pg_C2  = 2,
-    Pg_D2  = 3,
-    Pg_C2V = 4,
-    Pg_C2H = 5,
-    Pg_D2H = 6
+    Pg_CI  = 2,
+    Pg_C2  = 3,
+    Pg_D2  = 4,
+    Pg_C2V = 5,
+    Pg_C2H = 6,
+    Pg_D2H = 7
 };
 
 /*
@@ -45,6 +46,12 @@ struct FSymmetry
     // index list of symmetry-unique atom center in unit-cell
     TArray<FORTINT>
         SymAtoms;
+
+    // index matrix of translational lattice vector
+    // kTs = TSymIndex[iTs, jTs] satisfies [0, kTs] == [iTs, jTs]
+    // iTs, jTs, and kTs \in super-cell
+    TArray<FORTINT>
+        TSymIndex;
 };
 
 #endif

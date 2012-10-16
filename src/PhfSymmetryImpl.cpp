@@ -4,20 +4,21 @@
  * Implementation of symmetry objects which is independent from main skeleton
  */
 
+#include <cmath>
 #include "PhfSymmetryImpl.h"
 
 /*
  * Getting an index matrix for translational symmetry
- * + TSymMatrix[ iTs, jTs ] returns index of identical translational vector from first unit-cell
+ * + TSymIndex[ iTs, jTs ] returns index of identical translational vector from first unit-cell
  *   (i.e. [ iTs, jTs ] = [ 0, kTs ]
  */
-void GetTransSymMatrix(const FSuperCell& SuperCell, TArray<FORTINT> TSymMatrix)
+void GetTSymIndex(const FSuperCell& SuperCell, TArray<FORTINT>& TSymIndex)
 {
     const TVector3<FORTINT> &SCellSize = SuperCell.Size;
     uint nSCells = SCellSize[0] * SCellSize[1] * SCellSize[2];
 
-    TSymMatrix.clear();
-    TSymMatrix.reserve(nSCells * nSCells);
+    TSymIndex.clear();
+    TSymIndex.reserve(nSCells * nSCells);
 
     for(uint iz = 0; iz < SCellSize[2]; ++iz) {
       for(uint iy = 0; iy < SCellSize[1]; ++iy) {
@@ -35,7 +36,7 @@ void GetTransSymMatrix(const FSuperCell& SuperCell, TArray<FORTINT> TSymMatrix)
                 FORTINT xOffSet = jx - ix;
                 if(xOffSet < 0) xOffSet += SCellSize[0];
 
-                TSymMatrix.push_back((xOffSet * SCellSize[1] + yOffSet) * SCellSize[2] + zOffSet);
+                TSymIndex.push_back((xOffSet * SCellSize[1] + yOffSet) * SCellSize[2] + zOffSet);
               }
             }
           }
@@ -43,3 +44,68 @@ void GetTransSymMatrix(const FSuperCell& SuperCell, TArray<FORTINT> TSymMatrix)
       }
     }
 }
+
+FVector3 SymOp_E  (const FVector3& q)
+{
+    return FVector3( q);
+}
+
+FVector3 SymOp_X  (const FVector3& q)
+{
+    return FVector3(-q[0], q[1], q[2]);
+}
+
+FVector3 SymOp_Y  (const FVector3& q)
+{
+    return FVector3( q[0],-q[1], q[2]);
+}
+
+FVector3 SymOp_Z  (const FVector3& q)
+{
+    return FVector3( q[0], q[1],-q[2]);
+}
+
+FVector3 SymOp_XY (const FVector3& q)
+{
+    return FVector3(-q[0],-q[1], q[2]);
+}
+
+FVector3 SymOp_XZ (const FVector3& q)
+{
+    return FVector3(-q[0], q[1],-q[2]);
+}
+
+FVector3 SymOp_YZ (const FVector3& q)
+{
+    return FVector3( q[0],-q[1],-q[2]);
+}
+
+FVector3 SymOp_XYZ(const FVector3& q)
+{
+    return FVector3(-q[0],-q[1],-q[2]);
+}
+
+bool IsSymmetric(const FVector3& q1, const FVector3& q2)
+{
+    FVector3 qDiff = q2 - q1;
+    if(qDiff.LengthSq() < ThreSymmetric)
+      return true;
+    else
+      return false;
+}
+
+uint GetSymTable(const FVector3& q1, const FVector3& q2)
+{
+    uint table = 0x01;
+    return table;
+}
+
+uint GetSymLattice(const FLattice& lattice)
+{
+    uint table = 0x01;
+    return table;
+}
+
+
+
+

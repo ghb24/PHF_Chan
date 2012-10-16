@@ -60,7 +60,7 @@ This part is equal to
 \begin{equation}
 \int \left[ - \sum\limits_{\alpha \mathbf{T}} Z_{\alpha} \delta(\vec{r}' - (\vec{r}_{\alpha} + \mathbf{T})) + \frac{N}{\Omega} \right]  \frac{\text{erf}\left( \frac{\sqrt{\eta}}{2} \mid \vec{r} - \vec{r}' \mid \right)}{\mid \vec{r} - \vec{r}' \mid} d\vec{r}'
 \end{equation}
-where the summation $A$ is split into the sum $\alpha$ over the charges in one unit cell and the sum $\mathbf{T}$ over the different unit cells. With
+where the summation $A$ is split into the sum $\alpha$ over the charges in one supercell and the sum $\mathbf{T}$ over the different supercells. With
 \begin{equation}
 \sum\limits_{\mathbf{T}} \delta(\vec{r} - \mathbf{T}) = \frac{1}{\Omega} \sum\limits_{\mathbf{G}} e^{i \mathbf{G} . \vec{r}}
 \end{equation}
@@ -99,5 +99,5 @@ W = \sum\limits_{\alpha\beta} \frac{Z_{\alpha}Z_{\beta}}{2} \left( \frac{4\pi}{\
 \end{equation}
 where the ' denotes that the self-interaction term is explicitly kept out for the case $\mathbf{T} = 0$.\\
 
-Note that in Eq. \eqref{koekoek}, the divergence of the first and third terms cancel due to charge neutrality. We could therefore use this equation to calculate the exact remaining energy when the HF cycle has reached convergence (not implemented).
+Note that in Eq. \eqref{koekoek}, the divergences of the first and third terms cancel due to charge neutrality. We could therefore use this equation to calculate the exact remaining energy when the HF cycle has reached convergence (not implemented).
 \end{document}

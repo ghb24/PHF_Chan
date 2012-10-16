@@ -186,6 +186,9 @@ void FD(assign_integral_kernel)(FORTINT &iContext, FORTINT const &iKernel, FORTI
       case INTKERNEL_Coulomb_ShortRange_Erfc:
          ic->pKernel = new aic::FErfcCoulombKernel(pParamsF[0]);
          break;
+      case INTKERNEL_Coulomb_Truncated:
+         ic->pKernel = new aic::FTruncCoulombKernel(pParamsF[0]);
+         break;
       default:
          throw std::runtime_error("integral kernel not recognized.");
    }

@@ -130,7 +130,8 @@ extern "C" {
       INTKERNEL_Kinetic = 2,
       INTKERNEL_Coulomb = 3,
       INTKERNEL_Coulomb_LongRange_Erf = 4,  // pParamsF[0]: Screening length
-      INTKERNEL_Coulomb_ShortRange_Erfc = 5 // pParamsF[0]: Screening length
+      INTKERNEL_Coulomb_ShortRange_Erfc = 5, // pParamsF[0]: Screening length
+      INTKERNEL_Coulomb_Truncated = 6   // pParamsF[0]: Rc
    };
 
    /// create an internal integral evaluation context object, and return a handle to it.

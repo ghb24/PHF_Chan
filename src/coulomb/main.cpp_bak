@@ -14,7 +14,7 @@ int main( int argc, char* argv[] )
   double uy = 1.0e0;
   double lz = -1.0e0;
   double uz = 1.0e0;
-  phf::coulumb_grid::grid_3d func( nx, lx, ux, 
+  phf::coulomb_grid::grid_3d func( nx, lx, ux, 
 		                  ny, ly, uy,
 				  nz, lz, uz);
 

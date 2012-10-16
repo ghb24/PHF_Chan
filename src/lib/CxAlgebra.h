@@ -97,6 +97,15 @@ extern "C"{
         #define DGELSS FORT_Extern(dgelss,DGELSS)
         void DGELSS(FINTARG M, FINTARG N, FINTARG NRHS, double *A, FINTARG LDA, double *B, FINTARG LDB, double *S, double const &RCOND, FORTINT *RANK,
             double *WORK, FINTARG LWORK, FORTINT *INFO );
+
+
+//        #define DGER FORT_Extern(dger,DGER)
+//        void DGER(const int *m, const int *n, const double *alpha, const double *x,
+//                  const int *incx, const double *y, const int *incy,
+//                  double *a, const int *lda);
+//        #define DDOT FORT_Extern(ddot,DDOT)
+//        double DDOT(const int *n, const double *dx, const int *incx,
+//                    const double *dy, const int *incy);
 }
 
 

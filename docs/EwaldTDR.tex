@@ -90,13 +90,6 @@ The nuclear-nuclear term (per supercell) is given by
 W = \sum\limits_{\alpha\beta} \frac{Z_{\alpha}Z_{\beta}}{2} \left( \frac{4\pi}{\Omega} \sum\limits_{\mathbf{G} \neq 0} \frac{e^{i \mathbf{G}.(\vec{r}_{\beta} - \vec{r}_{\alpha})} e^{-G^2/\eta}}{G^2} - \sqrt{\frac{\eta}{\pi}} \delta_{\alpha\beta} + \sum\limits_{\mathbf{T}}^{'} \frac{\text{erfc}\left( \frac{\sqrt{\eta}}{2} \mid \vec{r}_{\beta} - \vec{r}_{\alpha} + \mathbf{T} \mid \right)}{\mid \vec{r}_{\beta} - \vec{r}_{\alpha} + \mathbf{T} \mid}  \right) - \frac{4 \pi N^2}{2 \Omega \eta} \label{gjgj3}
 \end{equation}
 where the ' denotes that the self-interaction term is explicitly kept out for the case $\mathbf{T} = 0$.
-\section{Input, output, program comments}
-We will work in C++. The Ewald class has the following functionalities:
-\begin{itemize}
-\item Ewald::Ewald takes in info about the unit cell: nuclear charges, supercell translation vectors ($\mathbf{T}_1, \mathbf{T}_2,\mathbf{T}_3$), locations of the nuclear charges $\left\{ Z_{\alpha} \right\}$ defined as $\vec{r}_{\alpha} = x_{\alpha} \mathbf{T}_1 + y_{\alpha} \mathbf{T}_2 + z_{\alpha} \mathbf{T}_3$, supercell reciprocal vectors ($\mathbf{G}_1,\mathbf{G}_2,\mathbf{G}_3$), and supercell volume.
-\item Ewald::NN taken in the parameter $\eta$ and returns the nuclear-nuclear repulsion energy $W$.
-\item Ewald::eN takes in info of two gaussian primitives $(\zeta_a,\vec{n}_a,\vec{A},\zeta_b,\vec{n}_b,\vec{B})$ and the parameter $\eta$ and returns the last term of Eq. \eqref{gjgj2} sandwiched between the two gaussian primitives.
-\end{itemize}
 
 
 

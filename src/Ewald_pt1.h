@@ -68,7 +68,7 @@ class Ewald_pt1{
       void CalcReciprocal();
 
       //Based on the metric of the skew reciprocal basis, an upper bound is determined for n1,n2,n3 (continuous veriables, |ni|<=upper bound) so that in the set (n1G1 + n2G2 + n3G3) certainly all vectors within the unit sphere are contained. Important for doing the summation over all G vectors in Ewald::eN.
-      double giveNmaxOverR();
+      double giveNmaxOverR(bool useG=true);
 
       //Work up the ladder for the factorized nested sine/cosine recursion relations
       void FillCosSinOneElectron(double * element_cos, double * element_sin, int lmax, double seed, double zeta, double Aco, double Bco, double Pco, double Gco);

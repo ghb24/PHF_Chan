@@ -83,10 +83,11 @@ All terms on the r.h.s. can be sandwiched between gaussian basis functions analy
 & + & \frac{1}{2(\zeta_a + \zeta_b)} N_i(\vec{n}_b) (\zeta_a,\vec{n}_a,\vec{A} \mid e^{i \vec{G}. \vec{r}} \mid \zeta_b,\vec{n}_b -\vec{1}_i,\vec{B} )\\
 (\zeta_a,\vec{0},\vec{A} \mid e^{i \vec{G}. \vec{r}} \mid \zeta_b,\vec{0},\vec{B} ) & = & \left( \frac{\pi}{\zeta_a + \zeta_b} \right)^{\frac{3}{2}} e^{\frac{\left( \zeta_a \vec{A} + \zeta_b \vec{B} + \frac{i \vec{G}}{2} \right)^2}{\zeta_a + \zeta_b} - (\zeta_a \vec{A}^2 + \zeta_b \vec{B}^2)}
 \end{eqnarray}
+These integrals can be seperated in the three cartesian coordinates. By recombining the terms corresponding to $\mathbf{G}$ and $-\mathbf{G}$, it is possible to derive recursion relations per cartesian coordinate for the cosine and sine parts of the phase operator (they mix). Together with the phase factor due to the nuclear positions, this then gives a real expression that enters the sum, which now only goes over half the reciprocal lattice vectors.
 \section{The nuclear-nuclear term}
 The nuclear-nuclear term (per supercell) is given by
 \begin{equation}
-W = \sum\limits_{\alpha\beta} \frac{Z_{\alpha}Z_{\beta}}{2} \left( \frac{4\pi}{\Omega} \sum\limits_{\mathbf{G} \neq 0} \frac{e^{i \mathbf{G}.(\vec{r}_{\beta} - \vec{r}_{\alpha})} e^{-G^2/\eta}}{G^2} - \sqrt{\frac{\eta}{\pi}} \delta_{\alpha\beta} + \sum\limits_{\mathbf{T}}^{'} \frac{\text{erfc}\left( \frac{\sqrt{\eta}}{2} \mid \vec{r}_B - \vec{r}_A + \mathbf{T} \mid \right)}{\mid \vec{r}_B - \vec{r}_A + \mathbf{T} \mid}  \right) - \frac{4 \pi N^2}{2 \Omega \eta} \label{gjgj3}
+W = \sum\limits_{\alpha\beta} \frac{Z_{\alpha}Z_{\beta}}{2} \left( \frac{4\pi}{\Omega} \sum\limits_{\mathbf{G} \neq 0} \frac{e^{i \mathbf{G}.(\vec{r}_{\beta} - \vec{r}_{\alpha})} e^{-G^2/\eta}}{G^2} - \sqrt{\frac{\eta}{\pi}} \delta_{\alpha\beta} + \sum\limits_{\mathbf{T}}^{'} \frac{\text{erfc}\left( \frac{\sqrt{\eta}}{2} \mid \vec{r}_{\beta} - \vec{r}_{\alpha} + \mathbf{T} \mid \right)}{\mid \vec{r}_{\beta} - \vec{r}_{\alpha} + \mathbf{T} \mid}  \right) - \frac{4 \pi N^2}{2 \Omega \eta} \label{gjgj3}
 \end{equation}
 where the ' denotes that the self-interaction term is explicitly kept out for the case $\mathbf{T} = 0$.
 \section{Input, output, program comments}

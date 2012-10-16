@@ -140,22 +140,24 @@ subroutine ExchangeSum(ExEnergy,Exchange,Lattice,UnitCell,Supercell,Density)
             !This is specifically only for cubic symmetry - this needs to be generalized
             !In non cubic symmetry, the shells are no longer 'degenerate', so perhaps we should just
             !loop over in each direction. Probably best.
-            do shella=0,16
+            do shella=0,4 !16 
                 call findvectorsforshell(nperms_a,a_vecs,shella,48)
+                !write(6,*) "Looping over a shell: ",shella," Permutations: ",nperms_a
                 if(nperms_a.gt.48) call stop_all(t_r,'error in perms')
                 do ap=1,nperms_a
 
-                    do shellc=0,16
+                    do shellc=0,4 !16
                         call findvectorsforshell(nperms_c,c_vecs,shellc,48)
+                        !write(6,*) "Looping over c shell: ",shellc," Permutations: ",nperms_c
                         if(nperms_c.gt.48) call stop_all(t_r,'error in perms')
                         do cp=1,nperms_c 
 
-                            do shellb=0,16
+                            do shellb=0,4 !16
                                 call findvectorsforshell(nperms_b,b_vecs,shellb,48)
-                                write(6,*) "Looping over b shell: ",shellb," Permutations: ",nperms_b
+                                !write(6,*) "Looping over b shell: ",shellb," Permutations: ",nperms_b
                                 if(nperms_b.gt.48) call stop_all(t_r,'error in perms')
                                 do bp=1,nperms_b
-                                    write(6,*) "b translation: ",bp,b_vecs(:,bp)
+                                    !write(6,*) "b translation: ",bp,b_vecs(:,bp)
 
                                     !The real-space translation vectors for the centers of the 
                                     TransVec(:,1) = 0.0_dp  !Translation of mu (always in unit cell, therefore 0)
@@ -196,13 +198,14 @@ subroutine ExchangeSum(ExEnergy,Exchange,Lattice,UnitCell,Supercell,Density)
                                             !        if(ConvergedInts(i,j,1,1).ne.0.0_dp) write(6,*) i,j,ConvergedInts(i,j,1,1)
                                             !    enddo
                                             !enddo
+                                            !write(6,*) ConvergedInts(:,:,:,:)
+                                            !call stop_all(t_r,"end")
 
                                             nu=nu+nnu   !Increment the nu value we are up to
                                         enddo
                                         sig=sig+nsig    !Increment the sigma value we are up to
                                     enddo
 
-                                    !call stop_all(t_r,"end")
 
                                 enddo
                             enddo
@@ -211,11 +214,13 @@ subroutine ExchangeSum(ExEnergy,Exchange,Lattice,UnitCell,Supercell,Density)
                 enddo
             enddo
 
+
             do xmu=1,nmu    !Loop over functions in mu shell
                 do xlam=1,nlam  !Loop over functions in lambda shell
 
                     !contract here, to contract converged integrals with density matrix
                     ExMat(mu+xmu-1,lam+xlam-1) = DDOT(nSS_sq,ConvergedInts(:,:,xmu,xlam),1,UnpackedDM,1)
+                    write(6,*) mu+xmu-1,lam+xlam-1,ExMat(mu+xmu-1,lam+xlam-1)
 
                 enddo
             enddo

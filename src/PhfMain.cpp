@@ -52,7 +52,7 @@ int main(int argc, char *argv[])
        "\n";
    Solid.UnitCell.AddAtomsFromXyzData(pUnitCellAtomsXyz, 1.0, DefaultBases);
    Solid.UnitCell.Volume = Solid.Lattice.UnitCellVolume;
-   Solid.SuperCell.Init(FVector3i(4,4,4), Solid.Lattice, Solid.UnitCell);
+   Solid.SuperCell.Init(FVector3i(2,2,2), Solid.Lattice, Solid.UnitCell);
    Solid.UnitCell.OrbBasis.SetPeriodicityVectors(Solid.SuperCell.T);
 
    // allocate memory for density matrix, exchange matrix and coulomb matrix

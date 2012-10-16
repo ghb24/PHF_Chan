@@ -16,6 +16,7 @@
  * along with bfint (LICENSE). If not, see http://www.gnu.org/licenses/
  */
 
+#include <math.h>
 #include <cmath>
 #ifndef AIC_LOCAL_INCLUDES
    #define MACHINES_H_DEFINES_ONLY
@@ -30,6 +31,11 @@
 #include "AicDefs.h"
 #include "AicKernels.h"
 #include "AicBoysFn.h"
+
+#include <boost/format.hpp>
+#include <iostream>
+using namespace std;
+using namespace boost;
 
 namespace aic {
 
@@ -74,6 +80,22 @@ static void EvalErfCoulombGm(double *pOut, double rho, double T, uint MaxM, doub
 void FErfCoulombKernel::EvalGm( double *pOut, double rho, double T, uint MaxM, double Prefactor ) const
 {
    EvalErfCoulombGm(pOut, rho, T, MaxM, (2*M_PI)*Prefactor/rho, m_Omega);
+};
+
+void FTruncCoulombKernel::EvalGm( double *pOut, double rho, double T, uint MaxM, double Prefactor) const
+{
+    // form truncated coulomb kernal, truncated range of Rc
+    // pi^(3/2)(2 erf(sqrt(T)) + erf(Rcp-sqrt(T)) - erf(Rcp+sqrt(T)))/2 rho sqrt(T)
+    double
+        Rcp = Rc*std::sqrt(Rc), RtT = std::sqrt(T);
+    if(T<1e-10){
+        pOut[0] = 2 * pow(M_PI,(3./2.)) * exp(-Rcp*Rcp) * (exp(Rcp*Rcp)-1) / (std::sqrt(M_PI) * rho);
+    }
+    else{
+        pOut[0] = std::pow(M_PI,(3./2.))*(2 * erf(RtT) + erf(Rcp-RtT) - erf(Rcp+RtT))/(2 * rho * RtT);
+    }
+    pOut[0] *= Prefactor;
+    // cout << format("rho = %15.5f  T = %15.5e  ->  pOut[0] = %15.5f") % rho % T % pOut[0] << std::endl;
 };
 
 void FErfcCoulombKernel::EvalGm( double *pOut, double rho, double T, uint MaxM, double Prefactor ) const
@@ -419,6 +441,7 @@ FGaussCoulombKernel::~FGaussCoulombKernel() {}
 FGaussKineticKernel::~FGaussKineticKernel() {}
 FErfCoulombKernel::~FErfCoulombKernel() {}
 FErfcCoulombKernel::~FErfcCoulombKernel() {}
+FTruncCoulombKernel::~FTruncCoulombKernel() {}
 
 
 } // namespace aic

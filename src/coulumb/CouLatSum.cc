@@ -342,7 +342,10 @@ double coul_matrix(const FSolidModel& solid, const FOpMatrix& den_mat,
     del_coul_fft();
     const int INC1 = 1;
     int n = coul_mat.size();
-    return ddot_(&n, &coul_mat[0], &INC1, &den_mat[0], &INC1);
+    int ncells = _env.p_super_cell->Size[0]
+               * _env.p_super_cell->Size[1]
+               * _env.p_super_cell->Size[2];
+    return ddot_(&n, &coul_mat[0], &INC1, &den_mat[0], &INC1) / ncells;
 }
 
 } // end namespace cls

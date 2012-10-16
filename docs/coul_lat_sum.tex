@@ -217,6 +217,13 @@ can derive the expression of $\tilde{V}_{\mu\nu}^{0J}$
 \end{align}
 where $\omega_\mathbf{r}$ is the integration weight of grid.
 
+For a unit cell, the averaged energy which corresponds to $\tilde{V}$ is
+\begin{equation}
+  \tilde{E} = \frac{1}{N}\sum_{\mu\nu J} D_{\mu\nu}^{0J} \tilde{V}_{\mu\nu}^{0J}
+  \label{}
+\end{equation}
+$N$ is the number of unit cells in a super cell.
+
 In the above equations, the summation limits of AO indices $\mu,\nu,\dots$,
 cell indices $I,J,\dots$, and mesh grid indices $\mathbf{r}$ which correspond
 to the electron coordinates are not yet determined.
@@ -225,9 +232,8 @@ In principle, the cell indices $I$ should run over all unit cells in a
 crystal.  The actual series of indices $I$ can always be truncated.
 When we use a super cell to mimic the crystal,
 we only loop over all the unit cells in the given super cell.
-(??May need to shift the farthest cell $\mathbf{R}^I-\mathbf{R}^{N_{x,y,z}}$,
-$N_{x,y,z}$ is the number of cells along one Cartesian axis in the super
-cell).
+(??May need to shift the farthest cell $\mathbf{R}^{N_{max}}$ to
+$\mathbf{R}^{-1}$).
 In Eq. \eqref{eq:rho:r0} and \eqref{eq:v:r0},
 we constrain the electron coordinate indices $\mathbf{r}$ in the $0$-th cell.
 The range of $\mathbf{r}$ thus go from 0 to the number of mesh grids in one

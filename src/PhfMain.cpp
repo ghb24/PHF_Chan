@@ -7,11 +7,11 @@
 #include "PhfScf.h"
 
 #include "lib/CtIo.h"
-#include "coulomb/CouLatSum.h"
 using namespace ct;
 using boost::format;
 
 #include "Ewald_pt1.h"
+#include "coulomb/CouLatSum.h"
 
 
 extern "C" {
@@ -120,15 +120,19 @@ int main(int argc, char *argv[])
       MrEwald.NN();
 
    }
+   
+   if (1) {
+       // test coulomb lattice sum
+       double coul_energy;
+       coul_energy = cls::coul_matrix(Solid, Density, Coulomb); 
+       xout << coul_energy << std::endl;
+       throw;
+   }
 
 
    // test call of fortran
-   //double ExchangeEnergy;
-   //exchangesum_(ExchangeEnergy,Exchange,Solid.Lattice,Solid.UnitCell,Solid.SuperCell,Density);
-   
-   // test coulomb lattice sum
-   double coul_energy;
-   coul_energy = cls::coul_matrix(Solid, Density, Coulomb); 
+   double ExchangeEnergy;
+   exchangesum_(ExchangeEnergy,Exchange,Solid.Lattice,Solid.UnitCell,Solid.SuperCell,Density);
 };
 
 

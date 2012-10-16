@@ -5,22 +5,28 @@
 
 #include <iostream>
 #include <assert.h>
+#include "../lib/CtIo.h"
 #include "CouLatSum.h"
 #include "nfft.h"
 //#include "grid_3d_class.h"
 //#include "../lib/CxAlgebra.h"
 #include "fblas.h"
 
-//extern "C" {
-//#include <cblas.h>
-//#include <stdio.h>
-//#include <stdlib.h>
-//}
+#define DEBUG
+
+#if defined DEBUG
+#include <math.h>
+//#define LOGGER(X,Y)    xout << "DEBUG:" << X << std::endl
+#define LOGGER(X,Y)     std::cout << #X << ":" << Y << std::endl
+#else
+#define LOGGER(X,Y)
+#endif
 
 
 namespace cls { // Coulomb Lattice Summation
 
 struct maybe_env_t {
+    FSolidModel *p1;
     const FSolidModel *p_solid;
     const FSuperCell *p_super_cell;
     const FLattice *p_lattice;
@@ -58,7 +64,7 @@ static double dtrace_vmv(int n_mu, int n_nu, double *mu, double *nu, double *mat
 
 static int cell_offset_by_cell_id(const int cell_id[3])
 {
-    int nx = _env->p_super_cell->Size[0];
+    //int nx = _env->p_super_cell->Size[0];
     int ny = _env->p_super_cell->Size[1];
     int nz = _env->p_super_cell->Size[2];
     return cell_id[2] * ny * nz + cell_id[1] * nz + cell_id[0];
@@ -130,7 +136,7 @@ static void grids_accumulator(FGridIter_t func,
 // the grid_coord should be constrained in 0-th cell
 static double ao_at_grid(const int ao_id, const double grid_coord[3])
 {
-    double ao = 0.01 * ao_id;
+    double ao = 0.01;
     // call grid class
 //    _env->p_bas->FD(eval_basis_fn_on_grid)();
 //        (double *pOut, FORTINT const &nCompSt,
@@ -246,6 +252,7 @@ static void coul_matrix_grid_iter(const int grid_id[3],
 
 static void coul_matrix_acc(double *real_space_pot, double *vmat)
 {
+    LOGGER(DEBUG, "coul_matrix_acc starts");
     double *ao = new double[_env->p_den_mat->nCols];
     // accumulate all the grids in 0-th cell
     grids_accumulator(coul_matrix_grid_iter, real_space_pot, vmat, ao);
@@ -260,33 +267,54 @@ static void coul_matrix_acc(double *real_space_pot, double *vmat)
  */
 void init_env(const FSolidModel& solid, const FOpMatrix& den_mat)
 {
+    LOGGER(DEBUG, "Init cls_env");
+    _env = new maybe_env_t;
+
     _env->p_solid = &solid;
     _env->p_super_cell = &solid.SuperCell;
     _env->p_lattice = &solid.Lattice;
     _env->p_unit_cell = &solid.UnitCell;
-    //_env->p_bas = &solid.UnitCell.OrbBasis;
+    _env->p_bas = &solid.UnitCell.OrbBasis;
     _env->p_den_mat = &den_mat;
 
     //_env->nao_unit_cell = solid.UnitCell.OrbBasis.nFn;
     _env->nao_unit_cell = den_mat.nRows;
+    LOGGER(DEBUG, "nao_unit_cell = " << _env->nao_unit_cell);
 
     double nele = 0;
     for (TArray<FORTINT>::const_iterator n = solid.UnitCell.Elements.begin();
-         n != solid.UnitCell.Elements.begin(); n++) {
+         n != solid.UnitCell.Elements.end(); n++) {
         nele += *n;
     }
+    LOGGER(DEBUG, "nele in unit cell = " << nele);
+
     double vol = solid.UnitCell.Volume;
     set_background_charge(nele/vol);
+    LOGGER(DEBUG, "unit cell vol = " << vol);
+    LOGGER(DEBUG, "unit cell average charge = " << _env->background_chg);
 
+    // set up mesh grids
     _env->p_grid3d = new phf::coulomb_grid::grid_3d();
-    _env->grid_weight = vol / (_env->p_grid3d->num_x
-                             * _env->p_grid3d->num_y
-                             * _env->p_grid3d->num_z);
+    _env->p_grid3d->set_ngrid(2, 3, 4);
+    // FIXME
+    _env->p_grid3d->set_grid_x(_env->p_grid3d->num_x, 0, _env->p_lattice->T[0][0]);
+    _env->p_grid3d->set_grid_y(_env->p_grid3d->num_y, 0, _env->p_lattice->T[1][1]);
+    _env->p_grid3d->set_grid_z(_env->p_grid3d->num_z, 0, _env->p_lattice->T[2][2]);
+    LOGGER(DEBUG, "unit cell grid numbers (x,y,z,total) = ("
+           << _env->p_grid3d->num_x << ","
+           << _env->p_grid3d->num_y << ","
+           << _env->p_grid3d->num_z << ","
+           << _env->p_grid3d->num_grid << ")");
+
+    _env->grid_weight = vol / _env->p_grid3d->num_grid;
+    LOGGER(DEBUG, "unit cell grid weight = " << _env->grid_weight);
+    LOGGER(DEBUG, "init_env ends");
 }
 
 void del_env()
 {
     delete _env->p_grid3d;
+    delete _env;
 }
 
 // TODO: density is obtained by looping over all the unit cells in the
@@ -322,6 +350,7 @@ double density_at_grid(const int grid_id[3])
 
 double density_unit_cell(double *density)
 {
+    LOGGER(DEBUG, "density on each grid starts");
     double nele = 0;
     int grid_id[3];
     for (int ix = 0; ix < _env->p_grid3d->num_x; ix++)
@@ -334,6 +363,14 @@ double density_unit_cell(double *density)
                 nele += _env->grid_weight * *density;
                 density++;
             }
+    LOGGER(INFO, "sum(weight * density) => number of nele = " << nele);
+#if defined DEBUG
+    LOGGER(DEBUG, "density_unit_cell ends");
+#else
+    if (abs(nele) > 1e-5) {
+        throw "Incorrect number of electron";
+    }
+#endif
     return nele;
 }
 
@@ -341,16 +378,23 @@ double density_unit_cell(double *density)
 double coul_matrix(const FSolidModel& solid, const FOpMatrix& den_mat,
                    FOpMatrix& coul_mat)
 {
+    LOGGER(DEBUG, "coul_matrix starts");
+#if defined DEBUG
+    FOpMatrix dm_tmp = den_mat;
+    for (unsigned int i =0; i<dm_tmp.size(); i++) {
+        dm_tmp[i] = cos(i) * .1;
+    }
+    init_env(solid, dm_tmp);
+#else
     init_env(solid, den_mat);
+#endif
 
-    int num_grid_in_unit_cell = _env->p_grid3d->num_x
-                              * _env->p_grid3d->num_y
-                              * _env->p_grid3d->num_z;
-    double *real_space_density = new double[num_grid_in_unit_cell];
-    double *real_space_pot = new double[num_grid_in_unit_cell];
+    double *real_space_density = new double[_env->p_grid3d->num_grid];
+    double *real_space_pot = new double[_env->p_grid3d->num_grid];
     // calculate the density
     density_unit_cell(real_space_density);
     // FFT Poisson solver
+    LOGGER(DEBUG, "call poisson solver");
     poisson_kspace_solver(real_space_density, real_space_pot, _env->p_grid3d);
     // Coulomb matrix
     coul_matrix_acc(real_space_pot, &coul_mat[0]);
@@ -363,7 +407,10 @@ double coul_matrix(const FSolidModel& solid, const FOpMatrix& den_mat,
     int ncells = _env->p_super_cell->Size[0]
                * _env->p_super_cell->Size[1]
                * _env->p_super_cell->Size[2];
-    return ddot_(&n, &coul_mat[0], &INC1, &den_mat[0], &INC1) / ncells;
+    double e = ddot_(&n, &coul_mat[0], &INC1, &den_mat[0], &INC1) / ncells;
+    LOGGER(INFO, "e_coul = " << e);
+    LOGGER(DEBUG, "coul_mat ends");
+    return e;
 }
 
 } // end namespace cls

@@ -120,9 +120,12 @@ int main(int argc, char *argv[])
    int N = 64;
 
    //this function initializes the RSPM class given the correct dimensions
+   // RSPM is the class which contains all the fock matrices/densities
+   // it stores the FULL matrices (not banded)
    RSPM::init(M,N);
 
    //initialize spm: this function doens't exist yet, as input I expect a 
+   // spm = single particle matrix for the first guess
    RSPM spm;
    initialize(spm.gMatrix()[0]);
 
@@ -130,9 +133,9 @@ int main(int argc, char *argv[])
    RSPM copy,F;
    Vector v(M);
 
-   DIIS diis;
+   DIIS diis;   //class which stores all the previous commutators
 
-   RSPM commutator;
+   RSPM commutator; //dummy variable to store commutator
 
    double convergence = 1.0;
 
@@ -143,7 +146,7 @@ int main(int argc, char *argv[])
 
       ++iter;
 
-      //construct the fock matrix
+      //construct the fock matrix from the 1PDM 
       construct_Fock(F.gMatrix()[0],spm.gMatrix()[0]);
 
       //add it to the diis object
@@ -165,7 +168,7 @@ int main(int argc, char *argv[])
 
       copy = spm;
 
-      spm.update(F);
+      spm.update(F);    // construct new guess for the density matrix
 
       copy -= spm;
 

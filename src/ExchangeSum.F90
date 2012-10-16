@@ -21,7 +21,7 @@ subroutine ExchangeSum(ExEnergy,Exchange,Lattice,UnitCell,Supercell,Density)
     real(dp) :: dDenDim   !Dimension of density matrix
     integer :: UnitCellFns
     integer :: SupercellFns
-    integer :: ap,bp,cp,i,ic,ierr
+    integer :: ap,bp,cp,i,j,ic,ierr
     integer :: nnu,nsig,nlam,nmu,ngroups_unit,ngroups_super,nperms_a,nperms_b,nperms_c
     integer :: lam_shell,mu_shell,sig_shell,nu_shell
     integer :: lam,mu,nu,sig,xlam,xmu,nSS_Sq
@@ -113,9 +113,11 @@ subroutine ExchangeSum(ExEnergy,Exchange,Lattice,UnitCell,Supercell,Density)
     do mu_shell=1,ngroups_unit 
         !Only want shells on symmetry unique atoms here for point group symmetry
         nmu = Unitcell_groups(mu_shell)%nFn
+        write(6,*) 'unit cell fock index orbital shell: ',mu_shell,' / ',ngroups_unit
 
         do lam_shell=1,ngroups_super
             nlam = Supercell_groups(lam_shell)%nFn
+            write(6,*) 'supercell fock index orbital shell: ',lam_shell,' / ',ngroups_super
 
             !Allocate memory for integrals converged over lattice vectors
             allocate(ConvergedInts(SupercellFns,SupercellFns,nmu,nlam),stat=ierr)
@@ -129,15 +131,20 @@ subroutine ExchangeSum(ExEnergy,Exchange,Lattice,UnitCell,Supercell,Density)
             !loop over in each direction. Probably best.
             do shella=0,16
                 call findvectorsforshell(nperms_a,a_vecs,shella,48)
+                if(nperms_a.gt.48) call stop_all(t_r,'error in perms')
                 do ap=1,nperms_a
 
                     do shellc=0,16
                         call findvectorsforshell(nperms_c,c_vecs,shellc,48)
+                        if(nperms_c.gt.48) call stop_all(t_r,'error in perms')
                         do cp=1,nperms_c 
 
                             do shellb=0,16
                                 call findvectorsforshell(nperms_b,b_vecs,shellb,48)
+                                write(6,*) "Looping over b shell: ",shellb," Permutations: ",nperms_b
+                                if(nperms_b.gt.48) call stop_all(t_r,'error in perms')
                                 do bp=1,nperms_b
+                                    write(6,*) "b translation: ",bp,b_vecs(:,bp)
 
                                     !The real-space translation vectors for the centers of the 
                                     TransVec(:,1) = 0.0_dp  !Translation of mu (always in unit cell, therefore 0)
@@ -153,30 +160,36 @@ subroutine ExchangeSum(ExEnergy,Exchange,Lattice,UnitCell,Supercell,Density)
                                     ! Need to loop over all shells(/groups) of basis functions in supercell to construct matrix
                                     !The basis functions are in supercell%OrbBasis
 
-                                    !Questions for G:
-                                        ! shell indices - supercell basis or unit cell basis?
-                                        ! Basis set from unit cell or supercell? And should it be the C-pointer or fortran?
-                                        ! How to get KERNAL value
-
                                     !Loop over nu, sigma   SHELLS!
-                                    nu=1
-                                    do nu_shell=1,ngroups_super
-                                        nnu = Supercell_groups(nu_shell)%nFn
+                                    sig=1
+                                    do sig_shell=1,ngroups_super
+                                        nsig = Supercell_groups(sig_shell)%nFn
 
-                                        sig=1
-                                        do sig_shell=1,ngroups_super
-                                            nsig = Supercell_groups(sig_shell)%nFn
+                                        nu=1
+                                        do nu_shell=1,ngroups_super
+                                            nnu = Supercell_groups(nu_shell)%nFn
 
-                                            !It *should* accumulate the integrals, but check this
                                             !Want to fill up ConvergedInts(nu:nu+nnu,sig:sig+nsig,1:nmu,1:nlam) for (mu nu | lam sig)
                                             strides = (/ nSS_sq, 1, nSS_sq*nMu, SupercellFns/) ! nSS x nSS x nMu x nLam
-                                            call eval_group_int2e_tra_incr(ConvergedInts(nu,sig,1,1),strides(1),-0.5_dp,mu_shell,TransVec(1,1),    &
-                                                nu_shell,TransVec(1,2),lam_shell,TransVec(1,3),sig_shell,TransVec(1,4),Supercell%OrbBasis, ic)
+                                            !write(6,*) "Loop over nu, sigma: ",nu,sig,ConvergedInts(nu,sig,1,1),sig_shell,lam_shell
+                                            !write(6,*) "TransVec: ",TransVec(:,:)
+                                            call eval_group_int2e_tra_incr(ConvergedInts(nu,sig,1,1),strides(1),-0.5_dp,mu_shell-1,TransVec(1,1),    &
+                                                nu_shell-1,TransVec(1,2),lam_shell-1,TransVec(1,3),sig_shell-1,TransVec(1,4),Supercell%OrbBasis, ic)
 
-                                            sig=sig+nsig    !Increment the sigma value we are up to
+                                            !write(6,*) "Loop over nu, sigma: ",nu,sig
+                                            !call flush(6)
+                                            !do i=1,SupercellFns
+                                            !    do j=1,SupercellFns
+                                            !        if(ConvergedInts(i,j,1,1).ne.0.0_dp) write(6,*) i,j,ConvergedInts(i,j,1,1)
+                                            !    enddo
+                                            !enddo
+
+                                            nu=nu+nnu   !Increment the nu value we are up to
                                         enddo
-                                        nu=nu+nnu   !Increment the nu value we are up to
+                                        sig=sig+nsig    !Increment the sigma value we are up to
                                     enddo
+
+                                    !call stop_all(t_r,"end")
 
                                 enddo
                             enddo
@@ -292,41 +305,49 @@ subroutine findvectorsforshell(numvecs,vecs,shell,maxvecs)
     val=1
     ! + + +
     call storeallperms(vecs,tuple,val,sameint,maxvecs)
+!    write(6,*) "val: ",val
     if(tuple(1).ne.0) then
         ! - + +
         signedtuple(:)=tuple(:)
         signedtuple(1)=-signedtuple(1)
         if(sameint.ne.1) then
+            !i.e. some of the numbers are the same, therefore the number of permutations may be different
             call calcnumberpairs(sameint_signed,signedtuple)
-            if(sameint_signed.lt.sameint) call stop_all(t_r,'error in calc perms')
+            if(sameint_signed.gt.sameint) call stop_all(t_r,'error in calc perms 1')
         else
             sameint_signed=sameint
         endif
         call storeallperms(vecs,signedtuple,val,sameint_signed,maxvecs)
+!        write(6,*) "2 val: ",val
     endif
-    if(tuple(2).ne.0) then
-        ! + - +
+    if((tuple(2).ne.0).and.(tuple(1).ne.tuple(2))) then
+        ! + - +     !If the second value is the same as the first, we will have already counted these permutations
         signedtuple(:)=tuple(:)
         signedtuple(2)=-signedtuple(2)
         if(sameint.ne.1) then
             call calcnumberpairs(sameint_signed,signedtuple)
-            if(sameint_signed.lt.sameint) call stop_all(t_r,'error in calc perms')
+            if(sameint_signed.gt.sameint) then
+                write(6,*) sameint_signed, sameint, signedtuple(:)
+                call stop_all(t_r,'error in calc perms 2')
+            endif
         else
             sameint_signed=sameint
         endif
         call storeallperms(vecs,signedtuple,val,sameint_signed,maxvecs)
+!        write(6,*) "3 val: ",val
     endif
-    if(tuple(3).ne.0) then
+    if((tuple(3).ne.0).and.(tuple(3).ne.tuple(1)).and.(tuple(3).ne.tuple(2))) then
         ! + + -
         signedtuple(:)=tuple(:)
         signedtuple(3)=-signedtuple(3)
         if(sameint.ne.1) then
             call calcnumberpairs(sameint_signed,signedtuple)
-            if(sameint_signed.lt.sameint) call stop_all(t_r,'error in calc perms')
+            if(sameint_signed.gt.sameint) call stop_all(t_r,'error in calc perms 3')
         else
             sameint_signed=sameint
         endif
         call storeallperms(vecs,signedtuple,val,sameint_signed,maxvecs)
+!        write(6,*) "4 val: ",val
     endif
     if((tuple(1).ne.0).and.(tuple(2).ne.0)) then
         ! - - +
@@ -335,37 +356,42 @@ subroutine findvectorsforshell(numvecs,vecs,shell,maxvecs)
         signedtuple(2)=-signedtuple(2)
         if(sameint.ne.1) then
             call calcnumberpairs(sameint_signed,signedtuple)
-            if(sameint_signed.lt.sameint) call stop_all(t_r,'error in calc perms')
+            if(sameint_signed.gt.sameint) call stop_all(t_r,'error in calc perms 4')
         else
             sameint_signed=sameint
         endif
         call storeallperms(vecs,signedtuple,val,sameint_signed,maxvecs)
+!        write(6,*) "5 val: ",val
     endif
-    if((tuple(1).ne.0).and.(tuple(3).ne.0)) then
+    if((tuple(1).ne.0).and.(tuple(3).ne.0).and.(sameint.eq.1)) then
+        !if all elements the same - ignore (sameint=3)
+        !if two elements the same - ignore, since always last two which are the same
         ! - + -
         signedtuple(:)=tuple(:)
         signedtuple(1)=-signedtuple(1)
         signedtuple(3)=-signedtuple(3)
         if(sameint.ne.1) then
             call calcnumberpairs(sameint_signed,signedtuple)
-            if(sameint_signed.lt.sameint) call stop_all(t_r,'error in calc perms')
+            if(sameint_signed.gt.sameint) call stop_all(t_r,'error in calc perms 5')
         else
             sameint_signed=sameint
         endif
         call storeallperms(vecs,signedtuple,val,sameint_signed,maxvecs)
+!        write(6,*) "6 val: ",val
     endif
-    if((tuple(2).ne.0).and.(tuple(3).ne.0)) then
+    if((tuple(2).ne.0).and.(tuple(3).ne.0).and.(sameint.ne.3)) then
         ! + - -
         signedtuple(:)=tuple(:)
         signedtuple(2)=-signedtuple(2)
         signedtuple(3)=-signedtuple(3)
         if(sameint.ne.1) then
             call calcnumberpairs(sameint_signed,signedtuple)
-            if(sameint_signed.lt.sameint) call stop_all(t_r,'error in calc perms')
+            if(sameint_signed.gt.sameint) call stop_all(t_r,'error in calc perms 6')
         else
             sameint_signed=sameint
         endif
         call storeallperms(vecs,signedtuple,val,sameint_signed,maxvecs)
+!        write(6,*) "7 val: ",val
     endif
     if((tuple(1).ne.0).and.(tuple(2).ne.0).and.(tuple(3).ne.0)) then
         ! - - -
@@ -375,11 +401,12 @@ subroutine findvectorsforshell(numvecs,vecs,shell,maxvecs)
         signedtuple(3)=-signedtuple(3)
         if(sameint.ne.1) then
             call calcnumberpairs(sameint_signed,signedtuple)
-            if(sameint_signed.lt.sameint) call stop_all(t_r,'error in calc perms')
+            if(sameint_signed.gt.sameint) call stop_all(t_r,'error in calc perms 7')
         else
             sameint_signed=sameint
         endif
         call storeallperms(vecs,signedtuple,val,sameint_signed,maxvecs)
+!        write(6,*) "8 val: ",val
     endif
 
     numvecs=val-1

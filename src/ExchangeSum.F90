@@ -19,6 +19,7 @@ subroutine ExchangeSum(ExEnergy,Exchange,Lattice,UnitCell,Supercell,Density)
 
     !Local variables
     real(dp) :: dDenDim   !Dimension of density matrix
+    real(dp) :: Rc,L
     integer :: UnitCellFns
     integer :: SupercellFns
     integer :: ap,bp,cp,i,j,ic,ierr
@@ -100,8 +101,15 @@ subroutine ExchangeSum(ExEnergy,Exchange,Lattice,UnitCell,Supercell,Density)
     ngroups_unit = Unitcell%OrbBasis%Groups%nSize
     write(6,*) "Number of groups of basis functions in unitcell: ",ngroups_unit
 
+    !Want Rc .le. L/2
+    !Calculate L for cubic cell - just take one direction. Won't be right in general
+    L = sqrt(Supercell%T(1,1)**2 + Supercell%T(2,1)**2 + Supercell%T(3,1)**2)
+    Rc = L/2.0_dp 
     ic = create_integral_context(0,0,1.0e-10_dp)
-    call assign_integral_kernel(ic,3,0,0)  !3 is for coulomb kernal
+    !Plain coulomb
+    !call assign_integral_kernel(ic,3,0,0)  !3 is for coulomb kernal
+    !Truncated coulomb
+    call assign_integral_kernel(ic,6,0,Rc)  !6 is for truncated coulomb kernal
 
     nSS_Sq = SupercellFns*SupercellFns
 

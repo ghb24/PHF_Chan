@@ -76,6 +76,15 @@ void FErfCoulombKernel::EvalGm( double *pOut, double rho, double T, uint MaxM, d
    EvalErfCoulombGm(pOut, rho, T, MaxM, (2*M_PI)*Prefactor/rho, m_Omega);
 };
 
+void FTruncCoulombKernel::EvalGm( double *pOut, double rho, double T, uint MaxM, double Rc) const
+{
+    // form truncated coulomb kernal, truncated range of Rc
+    // pi^(3/2)(2 erf(sqrt(T)) + erf(Rcp-sqrt(T)) - erf(Rcp+sqrt(T)))/2 rho sqrt(T)
+    double
+        Rcp = Rc*std::sqrt(Rc), RtT = std::sqrt(T);
+    pOut[i]?? = M_PI**(3./2.)*(2 * std::erf(RtT) + std::erf(Rcp-RtT) - std::erf(Rcp+RtT))/(2 * rho * RtT)
+};
+
 void FErfcCoulombKernel::EvalGm( double *pOut, double rho, double T, uint MaxM, double Prefactor ) const
 {
    // form regular coulomb kernel and subtract the long-range kernel.
@@ -419,6 +428,7 @@ FGaussCoulombKernel::~FGaussCoulombKernel() {}
 FGaussKineticKernel::~FGaussKineticKernel() {}
 FErfCoulombKernel::~FErfCoulombKernel() {}
 FErfcCoulombKernel::~FErfcCoulombKernel() {}
+FTruncCoulombKernel::~FTruncCoulombKernel() {}
 
 
 } // namespace aic

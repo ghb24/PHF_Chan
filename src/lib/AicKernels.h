@@ -127,6 +127,8 @@ private:
       *m_pGaussExp;
 };
 
+// 1/r12 if 
+
 // erf(omega r)/r  (long-range coulomb)
 struct FErfCoulombKernel : public FIntegralKernel
 {

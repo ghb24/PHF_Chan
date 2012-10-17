@@ -1,4 +1,5 @@
 #include <vector>
+#include "../PhfSolidDef.h"
 
 namespace phf { namespace coulomb_grid { 
 
@@ -12,6 +13,7 @@ public:
  grid_3d( int nx, int ny, int nz );
  grid_3d( int nx, int ny, int nz, double c );
  grid_3d( int nx, int ny, int nz, double cx, double cy, double cz );
+ grid_3d( FSolidModel& Solid, int nx, int ny, int nz ); // for arbitary shape unit cell
  grid_3d( int nx, double lx, double ux,
           int ny, double ly, double uy,
 	  int nz, double lz, double uz); // main contructor to use, feed it with the n, upper limit and lower limit 

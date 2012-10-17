@@ -124,7 +124,8 @@ int main(int argc, char *argv[])
    if (1) {
        // test coulomb lattice sum
        double coul_energy;
-       coul_energy = cls::coul_matrix(Solid, Density, Coulomb); 
+       FORTINT ic = create_integral_context_(0,0, 1e-10);
+       coul_energy = cls::coul_matrix(Solid, Density, Coulomb, ic); 
        xout << coul_energy << std::endl;
        throw;
    }

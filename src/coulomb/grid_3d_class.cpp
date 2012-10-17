@@ -126,4 +126,54 @@ grid_3d::grid_3d( int nx, double lx, double ux,
 
 }
 
+grid_3d::grid_3d( FSolidModel& Solid, int na, int nb, int nc )
+{
+
+  this->set_ngrid(na, nb, nc);
+  int numgrid = this->get_ngrid();
+
+// make a local copy of the lattice vectors
+  std::vector< std::vector<double> > v;
+  for( int i = 0; i < 3; i++ ){
+   std::vector< double > tmpv;
+   double value1 = Solid.Lattice.T[i][0];
+   double value2 = Solid.Lattice.T[i][1];
+   double value3 = Solid.Lattice.T[i][2];
+
+   tmpv.push_back(value1);
+   tmpv.push_back(value2);
+   tmpv.push_back(value3);
+
+   v.push_back(tmpv);
+  }
+
+  double grid_spacing_x = 1.0e-3;
+  double grid_spacing_y = 1.0e-3;
+  double grid_spacing_z = 1.0e-3;
+
+//  this->grid_x.resize(numgrid);
+//  this->grid_y.resize(numgrid);
+//  this->grid_z.resize(numgrid);
+
+  for( int l = 0; l < na; l++ ){
+   for( int m = 0; m < nb; m++ ){
+    for( int n = 0; n < nc; n++ ){
+     double coeff_x = l * v.at(0).at(0) + m * v.at(1).at(0) + n * v.at(2).at(0);
+     coeff_x = coeff_x * grid_spacing_x;
+     this->grid_x.push_back(coeff_x);
+
+     double coeff_y = l * v.at(0).at(1) + m * v.at(1).at(1) + n * v.at(2).at(1);
+     coeff_y = coeff_y * grid_spacing_y;
+     this->grid_y.push_back(coeff_y);
+
+     double coeff_z = l * v.at(0).at(2) + m * v.at(1).at(2) + n * v.at(2).at(2);
+     coeff_z = coeff_z * grid_spacing_z;
+     this->grid_z.push_back(coeff_z);
+
+    }
+   }
+  }
+
+}
+
 } } // end of phf::coulomb_grid

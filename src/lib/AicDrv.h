@@ -170,6 +170,77 @@ inline uint nCartY(uint l){
    return (l+1)*(l+2)/2;
 }
 
+struct FGaussBfn;
+struct FMolproBasis;
+
+// an internal interface for low-level drivers. probably should not be here
+// (all the other stuff using this is in AicFB.h, but we don't actually have that here.)
+struct FShellData {
+   uint
+      l, // angular momentum
+      nCo, // number of contractions
+      nPrim, // number of primitive shells (==number of exponents)
+      ShOff; // primitive exponent offset in screening test density
+   double const
+      *pExp, // primitive exponents
+      *pCo;  // nExp x nCo contraction matrix
+   FVector3  // position
+      vCenter;
+
+   FShellData(uint iGrp, FMolproBasis const &Basis);
+   inline FShellData(uint l_, uint nCo_, uint nPrim_, uint ShOff_, double const *pExp_, double const *pCo_, FVector3 const &vCenter_);
+   inline FShellData(uint l_, uint nCo_, uint nPrim_, uint ShOff_, double const *pExp_, double const *pCo_, double const *pvCenter_);
+   inline FShellData(FGaussBfn const &Bf, FVector3 const &vCenter_); // AicDrv.cpp
+   uint nFn() const { return nCo * (2*l + 1); };
+#ifdef _DEBUG
+   void Print() const;
+#endif // _DEGUG
+};
+
+FShellData::FShellData(uint l_, uint nCo_, uint nPrim_, uint ShOff_, double const *pExp_, double const *pCo_, FVector3 const &vCenter_)
+   : l(l_), nCo(nCo_), nPrim(nPrim_), ShOff(ShOff_), pExp(pExp_), pCo(pCo_), vCenter(vCenter_)
+{
+}
+
+FShellData::FShellData(uint l_, uint nCo_, uint nPrim_, uint ShOff_, double const *pExp_, double const *pCo_, double const *pvCenter_)
+   : l(l_), nCo(nCo_), nPrim(nPrim_), ShOff(ShOff_), pExp(pExp_), pCo(pCo_), vCenter(pvCenter_[0], pvCenter_[1], pvCenter_[2])
+{
+}
+
+
+// evaluate 2-electron 2-center integrals <a|krn|c>.
+// if add is given: increment the output instead of overwriting it.
+void EvalInt2e2c( double *pOut, uint *Strides,
+    FShellData &ShA, FShellData &ShC, double Prefactor, bool Add,
+    FIntegralKernel const *pKernel, FMemoryStack &Mem );
+
+// evaluate 2-electron 2-center integrals <a|krn * laplace|c>
+// note: to obtain the kinetic energy operator, pass an overlap kernel
+//       and supply -.5 as Prefactor (ekin = -.5 laplace).
+// if add is given: increment the output instead of overwriting it.
+void EvalInt2e2c_LaplaceC( double *pOut, uint *Strides,
+    FShellData &ShA, FShellData &ShC, double Prefactor, bool Add,
+    FIntegralKernel const *pKernel, FMemoryStack &Mem );
+
+// // r[i] += f * x[i]
+// template<class FScalar>
+// void Add2( FScalar *AIC_RP r, FScalar const *AIC_RP x, FScalar f, std::size_t n );
+//
+// // r[i] += f * x[i] * y[i]
+// template<class FScalar>
+// void Add2( FScalar *AIC_RP r, FScalar const *AIC_RP x, FScalar const *AIC_RP y, FScalar f, std::size_t n );
+//
+// ^- suncc is confused by the templates, and reports multiple definitions for
+// completely unrelated symbols if these are used from a different directory
+// than AicFB.h resides in; atm we only need it for doubles anyway here.
+
+// r[i] += f * x[i]
+void Add2( double *AIC_RP r, double const *AIC_RP x, double f, std::size_t n );
+
+// r[i] += f * x[i] * y[i]
+void Add2( double *AIC_RP r, double const *AIC_RP x, double const *AIC_RP y, double f, std::size_t n );
+
+
 
 } // namespace aic
 

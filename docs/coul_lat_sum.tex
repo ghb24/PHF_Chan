@@ -117,7 +117,7 @@ of $0$-th cell
   \mu^0(\mathbf{r})\nu^J(\mathbf{r})
 \end{align}
 
-The FFT of $\tilde{\rho}(\mathbf{k})$ in the whole real space reads
+The FFT of $\tilde{\rho}$ in the whole real space reads
 \begin{align}
   \tilde{\rho}(\mathbf{k})
   =\int d\mathbf{r}^3 \tilde{\rho}(\mathbf{r}) e^{-i\mathbf{k}\cdot\mathbf{r}}
@@ -127,12 +127,11 @@ The FFT of $\tilde{\rho}(\mathbf{k})$ in the whole real space reads
   e^{-i\mathbf{k}\cdot \mathbf{r}}
   \label{}
 \end{align}
-The subscription $\mathbf{r}$ of $\sum$ is the index of a mesh grid in
-the real space.  It indicates that the integral are calculated numerically in
+The subscription $\mathbf{r}$ of $\sum$ is the index of grid in the real
+space.  It indicates that the integral is calculated numerically in
 terms of the mesh grids.
-The summation was taken over every mesh grid of the whole space.
 Due to the periodic condition,
-if the density distribution of one cell was calculated,
+if the density distribution in unit cell was evaluated,
 we can know the values in all the other cells.
 Therefore, we can confine the FFT in whole space to the FFT in a finite space,
 say the volume of one cell,
@@ -158,14 +157,21 @@ the $\mathbf{k}$-space representation of the potential
 \end{equation}
 $\mathbf{k}$ vector can be represented as a vector in terms of the reciprocal
 basis $\mathbf{b}$
-\begin{equation}
-  \mathbf{k} = \mathbf{b}_1 k_1 + \mathbf{b}_2 k_2 + \mathbf{b}_3 k_3
+\begin{align}
+  \mathbf{b}_1 &= (b_{1x},b_{1y},b_{1z})\\
+  \mathbf{b}_2 &= (b_{2x},b_{2y},b_{2z})\\
+  \mathbf{b}_3 &= (b_{3x},b_{3y},b_{3z})\\
+  \mathbf{k}
+  &=\mathbf{b}_1 k_1 + \mathbf{b}_2 k_2 + \mathbf{b}_3 k_3
   = k_x \mathbf{e}_x + k_y \mathbf{e}_y + k_z \mathbf{e}_z
-  = (k_x, k_y, k_z)
+  = (k_x, k_y, k_z) \\
+  k_x &= b_{1x}k_1 + b_{2x}k_2 + b_{3x}k_3 \\
+  k_y &= b_{1y}k_1 + b_{2y}k_2 + b_{3y}k_3 \\
+  k_z &= b_{1z}k_1 + b_{2z}k_2 + b_{3z}k_3
   \label{}
-\end{equation}
+\end{align}
 If the reciprocal basis is non-orthogonal,
-the denominator of \eqref{eq:poisson} is calculated via
+the denominator of Eq. \eqref{eq:poisson} is calculated via
 \begin{equation}
   k^2 = k_x^2 + k_y^2 + k_z^2
   \label{}
@@ -200,6 +206,7 @@ and its inverse counterpart in the above equations
   \exp\left\{2\pi i \mathbf{k}\cdot \mathbf{r}\right\}
   \label{}
 \end{align}
+
 Eq. \eqref{eq:v:real} gives the real space potential of one cell.
 Using the translation symmetry, we can obtain the value of
 $\tilde{V}(\mathbf{r})$ in the remaining cells
@@ -212,7 +219,7 @@ $\tilde{V}(\mathbf{r})$ in the remaining cells
   \label{}
 \end{equation}
 Based on the periodic feature of the basis function and the potential, we
-can derive the expression of $\tilde{V}_{\mu\nu}^{0J}$
+have
 \begin{align}
   \tilde{V}_{\mu\nu}^{0J}
   &=\sum_{\mathbf{r}} \omega_\mathbf{r}
@@ -234,29 +241,38 @@ where $\omega_\mathbf{r}$ is the integration weight of grid.
 
 For a unit cell, the averaged energy which corresponds to $\tilde{V}$ is
 \begin{equation}
-  \tilde{E} = \frac{1}{N}\sum_{\mu\nu J} D_{\mu\nu}^{0J} \tilde{V}_{\mu\nu}^{0J}
+  \varepsilon = \int_{\mathbf{r}\in C} \rho(\mathbf{r})\tilde{V}(\mathbf{r}) d\mathbf{r}
+  = \frac{1}{N}\sum_{\mu\nu J} D_{\mu\nu}^{0J} \tilde{V}_{\mu\nu}^{0J}
+  = \sum_{\mu\nu} D_{\mu\nu}^{00} \tilde{V}_{\mu\nu}^{00}
   \label{}
 \end{equation}
-$N$ is the number of unit cells in a super cell.
+$\rho$ is the actual density, $N$ is the number of unit cells in a super cell.
 
+\subsection{Notice}
 In the above equations, the summation limits of AO indices $\mu,\nu,\dots$,
 cell indices $I,J,\dots$, and mesh grid indices $\mathbf{r}$ which correspond
 to the electron coordinates are not yet determined.
 The indices $\mu$ and $\nu$ are always limited to the number of AOs in one cell.
-In principle, the cell indices $I$ should run over all unit cells in a
-crystal.  The actual series of indices $I$ can always be truncated.
-When we use a super cell to mimic the crystal,
-we only loop over all the unit cells in the given super cell.
-(??May need to shift the farthest cell $\mathbf{R}^{N_{max}}$ to
-$\mathbf{R}^{-1}$).
-In Eq. \eqref{eq:rho:r0} and \eqref{eq:v:r0},
-we constrain the electron coordinate indices $\mathbf{r}$ in the $0$-th cell.
-The range of $\mathbf{r}$ thus go from 0 to the number of mesh grids in one
+In principle, the cell index $I$ should run over all unit cells in a
+crystal.  The summation over $I$ can always be truncated.
+In current implementation, we use a super cell to mimic the crystal,
+i.e., we sum over all the unit cells' contribution in the super cell.
+Since the 0-th cell locates at the super cell boundary, we rearrange the
+super-cell structure to let the 0-th cell be in the center.
+In Eq. \eqref{eq:rho:r0} and \eqref{eq:v:r0}, we constrain the electron
+coordinate index $\mathbf{r}$ to be in the $0$-th cell.
+The index of $\mathbf{r}$ thus go from 0 to the number of mesh grids in unit
 cell which is
 \begin{equation}
   n = n_x n_y n_z
   \label{}
 \end{equation}
+
+The representation of density in $\mathbf{k}$-space is not unique.
+It depends on the interval of integration in FFT.
+If the interval of integration is an unit cell,
+Eq. the $\mathbf{k}$-space density $\rho(\mathbf{k})$
+If the interval of integration is the whole space,
 
 
 \section{Programming model}
@@ -264,7 +280,7 @@ We set up a class ?\verb$grid_3d$ to store the
 grid informations. It includes the
 \begin{itemize}
   \item the coordinates of mesh grids in one cell
-  \item ??the value of basis at a given grid
+  \item ??the value of basis on each grid
 \end{itemize}
 
 \subsection{API functions}
@@ -276,19 +292,20 @@ double cls::coul_matrix(const FSolidModel& solid,
 \end{verbatim}
 \begin{itemize}
   \item function to get the Coulomb matrix.
-  \item input: \verb$den_mat$ is the density matrix with dims nAO $\times$ nAO
-    $\times$ nUnitCells
-  \item output: double array with dims nAO $\times$ nAO $\times$ nUnitCells
+  \item input: \verb$den_mat$ is double array with dims [nAO, nAO $\times$
+    nUnitCells].  The array is in Fortran-contiguous order.
+  \item output: \verb$coul_mat$ is double array with dims [nAO, nAO $\times$
+    nUnitCells].  The array is in Fortran-contiguous order.
   \item return: the energy in terms of the actual electron density $\rho$ and
-    modified potential $\tilde{V}$
+    the modified potential $\tilde{V}$
     \begin{equation}
       \varepsilon = \int_{\mathbf{r}\in C} \rho(\mathbf{r})\tilde{V}(\mathbf{r}) d\mathbf{r}
       \label{}
     \end{equation}
 \end{itemize}
 
-\item \verb$void init(const FSolidModel& solid, const FOpMatrix& den_mat);$
-\item \verb$void cls::del();$
+\item \verb$void init_env(const FSolidModel& solid, const FOpMatrix& den_mat);$
+\item \verb$void cls::del_env();$
 \item \verb$void cls::set_background_charge(const double chg);$
 \begin{itemize}
   \item replace the default background charge $\frac{N_{e}}{\Omega}$
@@ -304,22 +321,22 @@ double cls::coul_matrix(const FSolidModel& solid,
   \item value of density on each grid in a unit cell
 \end{itemize}
 
-\item 
-\begin{verbatim}
-void cls::cells_accumulator((*cells_iter)(), (*loop_terminater)(),
-        const int *grid_id, double *v, double *mat, double *ao);
-\end{verbatim}
-\begin{itemize}
-  \item loop generator, to loop over cells in the super-cell.
-\end{itemize}
-\item 
-\begin{verbatim}
-void cls::grids_accumulator((*grids_iter)(),
-        double *v, double *mat, double *ao);
-\end{verbatim}
-\begin{itemize}
-  \item loop generator, to loop over cells in the super-cell.
-\end{itemize}
+%\item 
+%\begin{verbatim}
+%void cls::cells_accumulator((*cells_iter)(), (*loop_terminater)(),
+%        const int *grid_id, double *v, double *mat, double *ao);
+%\end{verbatim}
+%\begin{itemize}
+%  \item loop generator, to loop over cells in the super-cell.
+%\end{itemize}
+%\item 
+%\begin{verbatim}
+%void cls::grids_accumulator((*grids_iter)(),
+%        double *v, double *mat, double *ao);
+%\end{verbatim}
+%\begin{itemize}
+%  \item loop generator, to loop over cells in the super-cell.
+%\end{itemize}
 \end{itemize}
 
 \section{Reference}

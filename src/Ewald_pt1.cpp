@@ -12,30 +12,32 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "Ewald_lapack.h"
+#include "PhfSolidDef.h"
 
-Ewald_pt1::Ewald_pt1(double etaval){ //FIXME
+Ewald_pt1::Ewald_pt1(double etaval, FSolidModel & Solid){
 
-   //FIXME: the following block should actually be passed/ filled in from passed data when Ewald is created.
-   //For now: do NaCl lattice
-   this->nNuclei = 2;
+   int nNucInUnitCell = Solid.UnitCell.Elements.size();
+   int nUnitCellInSuperCell = Solid.SuperCell.Ts.size();
+
+   this->nNuclei = nNucInUnitCell * nUnitCellInSuperCell;
    this->nZvals = new int[this->nNuclei];
-   this->nZvals[0] = 1;
-   this->nZvals[1] = 2;
-   this->dTvecs = new double[9];
-   double a_pm = 4.0;
-   this->dTvecs[0 + 3*0] = a_pm/2; //vec1 (c++:0) xco (c++:0)
-   this->dTvecs[0 + 3*1] = a_pm/2; //vec1 (c++:0) yco (c++:1)
-   this->dTvecs[0 + 3*2] = 0.0;
-   this->dTvecs[1 + 3*0] = 0.0;
-   this->dTvecs[1 + 3*1] = a_pm/2;
-   this->dTvecs[1 + 3*2] = a_pm/2;
-   this->dTvecs[2 + 3*0] = a_pm/2;
-   this->dTvecs[2 + 3*1] = 0.0;
-   this->dTvecs[2 + 3*2] = a_pm/2;
    this->dZloc = new double[this->nNuclei * 3];
-   this->dZloc[0 + nNuclei*0] = this->dZloc[0 + nNuclei*1] = this->dZloc[0 + nNuclei*2] = 0.0;
-   this->dZloc[1 + nNuclei*0] = a_pm/2;
-   this->dZloc[1 + nNuclei*1] = this->dZloc[1 + nNuclei*2] = 0.0;
+   
+   for (int cnt_unit=0; cnt_unit<nNucInUnitCell; cnt_unit++){
+      for (int cnt_trans=0; cnt_trans<nUnitCellInSuperCell; cnt_trans++){
+         this->nZvals[cnt_unit + nNucInUnitCell*cnt_trans] = Solid.UnitCell.Elements[cnt_unit];
+         this->dZloc[(cnt_unit + nNucInUnitCell*cnt_trans) + this->nNuclei*0] = Solid.UnitCell.Coords[cnt_unit].x() + Solid.SuperCell.Ts[cnt_trans].x();
+         this->dZloc[(cnt_unit + nNucInUnitCell*cnt_trans) + this->nNuclei*1] = Solid.UnitCell.Coords[cnt_unit].y() + Solid.SuperCell.Ts[cnt_trans].y();
+         this->dZloc[(cnt_unit + nNucInUnitCell*cnt_trans) + this->nNuclei*2] = Solid.UnitCell.Coords[cnt_unit].z() + Solid.SuperCell.Ts[cnt_trans].z();
+      }
+   }
+
+   this->dTvecs = new double[9];
+   for (int cnt=0; cnt<3; cnt++){
+      this->dTvecs[cnt + 3*0] = Solid.SuperCell.T[cnt].x();
+      this->dTvecs[cnt + 3*1] = Solid.SuperCell.T[cnt].y();
+      this->dTvecs[cnt + 3*2] = Solid.SuperCell.T[cnt].z();
+   }
 
    //This part is independent from any kind of input. It only depends on whether Tvecs is filled in correctly. Not that we use the Gi.Tj = 2 pi delta_ij convention.
    this->Volume = CalcSignedVolume();
@@ -50,12 +52,12 @@ Ewald_pt1::Ewald_pt1(double etaval){ //FIXME
    double radius = sqrt( - eta * log(epsilon) );
    this->maxN = ceil(giveNmaxOverR()*radius)+0.1;
 
-   std::cout << radius << "\t" << maxN << std::endl;
+   /*std::cout << radius << "\t" << maxN << std::endl;*/
 
-   std::cout << "Z\t[loc]" << std::endl;
+   /*std::cout << "Z\t[loc]" << std::endl;
    for (int cnt=0; cnt<nNuclei; cnt++){
       std::cout << nZvals[cnt] << "\t" << dZloc[cnt + nNuclei*0] << "\t" << dZloc[cnt + nNuclei*1] << "\t" << dZloc[cnt + nNuclei*2] << std::endl;
-   }
+   }*/
 
 }
 
@@ -88,9 +90,9 @@ void Ewald_pt1::CalcReciprocal(){
       }
    }
 
-   std::cout << "G-vecs" << std::endl;
+   /*std::cout << "G-vecs" << std::endl;
    for (int cnt=0; cnt<3; cnt++)
-      std::cout << dGvecs[cnt + 3*0] << "\t" << dGvecs[cnt + 3*1] << "\t" << dGvecs[cnt + 3*2] << std::endl;
+      std::cout << dGvecs[cnt + 3*0] << "\t" << dGvecs[cnt + 3*1] << "\t" << dGvecs[cnt + 3*2] << std::endl;*/
 
 
 }
@@ -141,7 +143,7 @@ double Ewald_pt1::NN(){
    //erfc(10) = 10^(-45)
    int maxNvalForTSum = 3 + ceil(giveNmaxOverR(false)*20/sqrt(eta)) + 0.1;
 
-   std::cout << maxNvalForTSum << std::endl;
+   /*std::cout << maxNvalForTSum << std::endl;*/
 
    for (int N1=-maxNvalForTSum; N1<=maxNvalForTSum; N1++){
       for (int N2=-maxNvalForTSum; N2<=maxNvalForTSum; N2++){
@@ -164,7 +166,7 @@ double Ewald_pt1::NN(){
       }
    }
 
-   std::cout << "NN\t" << result_pt1 + result_pt2 + result_pt3 << std::endl;
+   /*std::cout << "NN\t" << result_pt1 + result_pt2 + result_pt3 << std::endl;*/
 
    return (result_pt1 + result_pt2 + result_pt3);
 
@@ -279,8 +281,6 @@ void Ewald_pt1::eN(double * result, double zeta_A, int lmax_A, double Ax, double
    delete [] sin_term_rightsize;
    delete [] temp_rightsize;
 
-   std::cout << "Whee at Ewald_pt1" << std::endl;
-
 }
 
 
@@ -381,12 +381,6 @@ double Ewald_pt1::giveNmaxOverR(bool useG){
    return std::max(std::max(val1,val2),val3);
 
 }
-
-
-
-
-
-
 
 
 

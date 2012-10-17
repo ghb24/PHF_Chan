@@ -1,0 +1,139 @@
+\documentclass[8pt]{beamer}
+\usepackage{tikz}
+\usepackage{wrapfig}
+\usepackage{float}
+\usepackage{hyperref}
+\usepackage{color}
+\usepackage{braket}
+\usepackage{amsfonts}
+\usepackage{multirow}
+\usetheme{Boadilla}%Luebeck}
+\useoutertheme{infolines}
+
+
+\author[James and Sebastian]{James and Sebastian}
+\title[Ewald summation]{Ewald summation @ Waffle 0.1}
+\date[]{}
+
+\graphicspath{{afbeeldingen/}}
+
+\begin{document}
+\setbeamercolor{structure}{bg=black, fg=blue!100!gray}
+\setbeamercolor{navigation symbols}{fg=gray!70!white,Project: Scattering length for model potentials bg=blue!100!gray}
+\setbeamercolor{navigation symbols dimmed}{fg=gray!70!white}
+\begin{frame}
+ \titlepage
+\end{frame}
+
+\begin{frame}
+
+   \frametitle{The context}
+   In the Fock operator
+   \begin{equation}
+\hat{f} \psi_i(\vec{r}) = \left( - \frac{1}{2} \vec{\nabla}^2 - \sum\limits_{A} \frac{Z_A}{\mid \vec{r}_A - \vec{r} \mid} + \int \frac{\rho(\vec{r}')}{\mid \vec{r} - \vec{r}' \mid} d\vec{r}' \right) \psi_i(\vec{r}) - \sum\limits_j \int d\vec{r}' \left( \frac{\psi_j^*(\vec{r}') \psi_i(\vec{r}')}{\mid \vec{r}' - \vec{r} \mid} \right) \delta_{s^z_i,s^z_j} \psi_j(\vec{r}) \nonumber
+\end{equation}
+   we can shift charge between the nuclear and direct electronic terms
+   \begin{eqnarray}
+\tilde{\rho}_N(\vec{r}) & = & - \sum\limits_A Z_A \delta(\vec{r} - \vec{r}_A) + \frac{N}{\Omega} \\
+\tilde{\rho}_e(\vec{r}) & = & \rho(\vec{r}) - \frac{N}{\Omega} \label{hhh}
+\end{eqnarray}
+   without changing the global charge distribution or the HF equations. This allows both terms to be treated separately, the direct electronic part by FFT and the nuclear part by Ewald summation.
+
+\end{frame}
+
+\begin{frame}
+
+   \frametitle{Exact expressions}
+   One can show that
+   \begin{equation}
+   \int \frac{\tilde{\rho}_N(\vec{r}')}{\mid \vec{r} - \vec{r}' \mid} d\vec{r}' = - \sum\limits_A Z_A \frac{\text{erfc}\left( \frac{\sqrt{\eta}}{2} \mid \vec{r} - \vec{r}_A \mid \right)}{\mid \vec{r} - \vec{r}_A \mid} + \frac{4 \pi N}{\Omega \eta} - \frac{4 \pi}{\Omega} \sum\limits_{\alpha} Z_{\alpha} \sum\limits_{\mathbf{G} \neq 0} \frac{e^{i \mathbf{G}.(\vec{r} - \vec{r}_{\alpha})} e^{-G^2/\eta}}{G^2}
+   \end{equation}
+   
+   A: all charges\\
+   $\alpha$: charges in one supercell\\
+   N: total number of electrons per supercell\\
+   $\mathbf{G}$: reciprocal lattice vectors of the supercell\\
+   $\Omega$: supercell volume\\
+   $\eta$: self-introduced parameter
+   
+   \begin{itemize}
+   \item erfc decays exponentially fast: summation in real space OK.\\
+   \item $e^{-G^2/\eta}$: summation in reciprocal space OK.\\
+   \item All terms can be sandwiched between Gaussian primitives analytically.
+   \begin{itemize}
+   \item first term: Gerald's code
+   \item second term: just the overlap
+   \item third term: our code: class Ewald
+   \end{itemize}
+   \end{itemize}
+
+\end{frame}
+
+\begin{frame}
+
+   \frametitle{Reciprocal sum}
+   \begin{itemize}
+   \item void Ewald\_pt1::eN(double * {\color{blue}result}, double $\zeta_A$, int $lmax_A$, double Ax, double Ay, double Az, double $\zeta_B$, int $lmax_B$, double Bx, double By, double Bz);\\
+   
+   \item Provide array {\color{blue}result} of size $\frac{(lmax_A+1)(lmax_A+2)}{2} \times \frac{(lmax_B+1)(lmax_B+2)}{2}$.
+   
+   \item {\color{red}count} is defined e.g. for lmax = 3:
+   {\tiny \begin{table}
+   \begin{tabular}{|c|c|}
+   \hline
+   count & ($n_x,n_y,n_z$)\\
+   \hline
+   0 & (3,0,0)\\
+   1 & (2,1,0)\\
+   2 & (2,0,1)\\
+   3 & (1,2,0)\\
+   4 & (1,1,1)\\
+   5 & (1,0,2)\\
+   6 & (0,3,0)\\
+   7 & (0,2,1)\\
+   8 & (0,1,2)\\
+   9 & (0,0,3)\\
+   \hline
+   \end{tabular}
+   \end{table}}
+   
+   \item Fills in {\color{blue}result}$\left[{\color{red}count_A} + \frac{(lmax_A+1)(lmax_A+2)}{2} {\color{red}count_B}\right]$ with
+
+   \begin{eqnarray}
+   & & \int (x-Ax)^{n^A_x} (y-Ay)^{n^A_y} (z-Az)^{n^A_z} (x-Bx)^{n^B_x} (y-By)^{n^B_y} (z-Bz)^{n^B_z} \\
+   & & e^{-\zeta_A (\vec{r} - \vec{A})^2} e^{-\zeta_B (\vec{r} - \vec{B})^2} \left( - \frac{4 \pi}{\Omega} \sum\limits_{\alpha} Z_{\alpha} \sum\limits_{\mathbf{G} \neq 0} \frac{e^{i \mathbf{G}.(\vec{r} - \vec{r}_{\alpha})} e^{-G^2/\eta}}{G^2} \right) d \vec{r}
+   \end{eqnarray}
+   
+   \item Real-valued sine \& cosine recursion relations are implemented per coordinate axis.
+
+   \end{itemize}
+   
+\end{frame}
+
+\begin{frame}
+
+   \frametitle{Nuclear-nuclear term}
+   \begin{itemize}
+\item The following approximation is made in the program:
+\begin{equation}
+\tilde{E}_{direct} + \tilde{E}_{eN} = \frac{1}{2} \int \int \frac{\rho(\vec{r}) \tilde{\rho}_e(\vec{r}')}{\mid \vec{r} - \vec{r}' \mid} d\vec{r} d\vec{r}' + \int \int \frac{\rho(\vec{r}) \tilde{\rho}_N(\vec{r}')}{\mid \vec{r} - \vec{r}' \mid} d\vec{r} d\vec{r}'
+\end{equation}
+\item The remainder of the exact electrostatic energy is 
+\begin{equation}
+\tilde{E}_{remainder} = \frac{1}{2} \int \int \frac{\rho_N(\vec{r} + \vec{\epsilon}) \rho_N(\vec{r}')}{\mid \vec{r} - \vec{r}' + \vec{\epsilon} \mid} d\vec{r} d\vec{r}' - \frac{1}{2} \sum\limits_A \frac{Z_A^2}{\mid \vec{\epsilon} \mid} - \frac{1}{2} \frac{N}{\Omega} \int \int \frac{\rho(\vec{r})}{\mid \vec{r} - \vec{r}' \mid} d\vec{r} d\vec{r}' \label{koekoek}
+\end{equation}
+with $\rho_N(\vec{r}) = - \sum\limits_A Z_A \delta(\vec{r} - \vec{r}_A)$ and $\vec{\epsilon}$ going to zero.
+\item Make the approximation $\rho(\vec{r}) = \rho_N(\vec{r})$ in the last term.
+\item The nuclear-nuclear term (per supercell) is then given by
+\begin{equation}
+W = \sum\limits_{\alpha\beta} \frac{Z_{\alpha}Z_{\beta}}{2} \left( \frac{4\pi}{\Omega} \sum\limits_{\mathbf{G} \neq 0} \frac{e^{i \mathbf{G}.(\vec{r}_{\beta\alpha})} e^{-G^2/\eta}}{G^2} - \sqrt{\frac{\eta}{\pi}} \delta_{\alpha\beta} + \sum\limits_{\mathbf{T}}^{'} \frac{\text{erfc}\left( \frac{\sqrt{\eta}}{2} \mid \vec{r}_{\beta\alpha} + \mathbf{T} \mid \right)}{\mid \vec{r}_{\beta\alpha} + \mathbf{T} \mid}  \right) - \frac{4 \pi N^2}{2 \Omega \eta} \label{gjgj3}
+\end{equation}
+with $\vec{r}_{\beta\alpha} = \vec{r}_{\beta} - \vec{r}_{\alpha}$. The ' denotes that the self-interaction term is explicitly kept out for the case $\mathbf{T} = 0$.
+\item double Ewald\_pt1::NN()
+\end{itemize}
+\end{frame}
+
+
+\end{document}
+
+

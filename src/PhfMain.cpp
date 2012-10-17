@@ -111,7 +111,7 @@ int main(int argc, char *argv[])
    if (0) {
 
       double eta = 1.2;
-      Ewald_pt1 MrEwald = Ewald_pt1(eta);
+      Ewald_pt1 MrEwald = Ewald_pt1(eta, Solid);
       int lmax = 1;
       int dimlin = (lmax+1)*(lmax+2)/2;
       double * result = new double[dimlin*dimlin];

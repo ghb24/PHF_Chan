@@ -44,6 +44,7 @@ struct maybe_env_t {
     FORTINT nGridPt;
     FORTINT nDiffBf;
     FORTINT iContext;
+    FORTINT ic;
      
     int nao_unit_cell;
     double den_cutoff;
@@ -147,21 +148,31 @@ static void ao_unit_cell(const double grid_coord[3], double *ao)
     }
 }
 
-//static int offset_pOrbVal_by_cell_grid_id()
-//{
-//}
-
 // for the grid in 0-th cell, value of all AOs in the super cell
 static void ao_super_cell(const double grid_coord[3], double *ao)
 {
-    for (int i = 0; i < _env->p_den_mat->nCols; i++) {
-        ao[i] = 0;
-    }
-    double *p = _env->pOrbVal + 0;
-    for (int i = 0; i < _env->nMap; i++) {
-        ao[_env->pMap[i]] = p[i];
-    }
+    //FIXME:
+    //cells_accumulator(ao_unit_cell, is_cell_far,
+    //FD(eval_basis_fn_on_grid)(_env->pOrbVal, _env->nComp, _env->pCenterIndices,
+    //                          _env->pMap, _env->nMap,
+    //                          *(_env->p_bas), _env->GridPt, _env->nGridPt, 
+    //                          _env->nDiffBf, ic );
 }
+
+// FIXME: save and load the output of FD(eval_basis_fn_on_grid)
+//static int offset_pOrbVal_by_cell_grid_id()
+//{
+//}
+//static void ao_super_cell(const double grid_coord[3], double *ao)
+//{
+//    for (int i = 0; i < _env->p_den_mat->nCols; i++) {
+//        ao[i] = 0;
+//    }
+//    double *p = _env->pOrbVal + 0;
+//    for (int i = 0; i < _env->nMap; i++) {
+//        ao[_env->pMap[i]] = p[i];
+//    }
+//}
 
 
 static int is_cell_far(const int cell_id[3])
@@ -308,11 +319,17 @@ void init_env(const FSolidModel& solid, const FOpMatrix& den_mat)
 
     _env->grid_weight = vol / _env->p_grid3d->num_grid;
     LOGGER(DEBUG, "unit cell grid weight = " << _env->grid_weight);
+
+    LOGGER(DEBUG, "create_integral_context");
+    _env->ic = FD(create_integral_context)(0,0, 1e-10);
+
     LOGGER(DEBUG, "init_env ends");
 }
 
 void del_env()
 {
+    LOGGER(DEBUG, "destroy_integral_context");
+    FD(destroy_integral_context)(_env->ic);
     delete _env->p_grid3d;
     delete _env;
 }
@@ -373,7 +390,7 @@ double density_unit_cell(double *density)
 
 // return the coulomb energy
 double coul_matrix(const FSolidModel& solid, const FOpMatrix& den_mat,
-                   FOpMatrix& coul_mat, FORTINT ic )
+                   FOpMatrix& coul_mat)
 {
     LOGGER(DEBUG, "coul_matrix starts");
 #if defined DEBUG
@@ -400,13 +417,13 @@ double coul_matrix(const FSolidModel& solid, const FOpMatrix& den_mat,
     _env->pMap = new FORTINT [nbasis];
     _env->nGridPt = ncells * _env->p_grid3d->num_x;
     _env->pOrbVal = new double [ _env->nGridPt * _env->nComp * nbasis ];
-//    for( int i = 0; i < 3; i++ ){
-//     (_env->GridPt)[i] = new double [ ngrid3d ];
-//    }
+    //for( int i = 0; i < 3; i++ ){
+     _env->GridPt = (double (*)[3])(new double [ ngrid3d*3 ]);
+    //}
     _env->nDiffBf = 0;
     // calculate the basis function values in the super cell grid
     FD(eval_basis_fn_on_grid)( _env->pOrbVal, _env->nComp, _env->pCenterIndices, _env->pMap, _env->nMap,
-      *(_env->p_bas), _env->GridPt, _env->nGridPt, _env->nDiffBf, ic );
+      *(_env->p_bas), _env->GridPt, _env->nGridPt, _env->nDiffBf, _env->ic );
 
     // calculate the density
     density_unit_cell(real_space_density);

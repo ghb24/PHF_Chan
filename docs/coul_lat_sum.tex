@@ -141,7 +141,7 @@ say the volume of one cell,
   \tilde{\rho}(\mathbf{r}) e^{-i\mathbf{k}\cdot\mathbf{r}}
   =\sum_{\mathbf{r}\in C}
   \tilde{\rho}(\mathbf{r}) e^{-i\mathbf{k}\cdot \mathbf{r}}
-  \label{}
+  \label{eq:rhok:unitcell}
 \end{align}
 
 The Poisson equation in real space reads
@@ -248,7 +248,6 @@ For a unit cell, the averaged energy which corresponds to $\tilde{V}$ is
 \end{equation}
 $\rho$ is the actual density, $N$ is the number of unit cells in a super cell.
 
-\subsection{Notice}
 In the above equations, the summation limits of AO indices $\mu,\nu,\dots$,
 cell indices $I,J,\dots$, and mesh grid indices $\mathbf{r}$ which correspond
 to the electron coordinates are not yet determined.
@@ -267,12 +266,6 @@ cell which is
   n = n_x n_y n_z
   \label{}
 \end{equation}
-
-The representation of density in $\mathbf{k}$-space is not unique.
-It depends on the interval of integration in FFT.
-If the interval of integration is an unit cell,
-Eq. the $\mathbf{k}$-space density $\rho(\mathbf{k})$
-If the interval of integration is the whole space,
 
 
 \section{Programming model}

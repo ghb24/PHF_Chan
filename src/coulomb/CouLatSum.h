@@ -32,5 +32,5 @@ double density_unit_cell(double *density);
 
 //
 double coul_matrix(const FSolidModel& solid, const FOpMatrix& den_mat,
-                   FOpMatrix& coul_mat, FORTINT ic);
+                   FOpMatrix& coul_mat);
 }

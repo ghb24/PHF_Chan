@@ -230,13 +230,6 @@ static void density_cell0(const int grid_id, const int cell_id[3],
     coord[1] += -cell_coord[1];
     coord[2] += -cell_coord[2];
     ao_super_cell(coord, ao);
-//x    LOGGER(DEBUG, "grid_id = " << grid_id << " "
-//x           "cell_id = " << cell_id[0] << " " << cell_id[1] << " " << cell_id[2]);
-//x    for (int i = 0; i < 16;i++)
-//x        LOGGER(DEBUG, "i = " << i << ", " << ao[i]);
-//x    LOGGER(DEBUG, "dmat = ");
-//x    for (int i = 0; i < 16;i++)
-//x        LOGGER(DEBUG, "i = " << i << ", " << dmat[i]);
 
     int n_mu = _env->p_den_mat->nRows;
     int n_nu = _env->p_den_mat->nCols;
@@ -466,7 +459,7 @@ void del_env()
 /*
  **************************************************
  * for Poisson equation FFT solver
- * size of array kcoords > size_of [_env->p_grid3d->num_grid][3]
+ * size of array kcoords >= size_of [_env->p_grid3d->num_grid][3]
  */
 static void kspace_grids_generator(double *kcoords)
 {

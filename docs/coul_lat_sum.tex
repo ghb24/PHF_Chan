@@ -240,12 +240,14 @@ have
 where $\omega_\mathbf{r}$ is the integration weight of grid.
 
 For a unit cell, the averaged energy which corresponds to $\tilde{V}$ is
-\begin{equation}
-  \varepsilon = \int_{\mathbf{r}\in C} \rho(\mathbf{r})\tilde{V}(\mathbf{r}) d\mathbf{r}
-  = \frac{1}{N}\sum_{\mu\nu J} D_{\mu\nu}^{0J} \tilde{V}_{\mu\nu}^{0J}
-  = \sum_{\mu\nu} D_{\mu\nu}^{00} \tilde{V}_{\mu\nu}^{00}
+\begin{align}
+  \varepsilon &= \int_{\mathbf{r}\in C} \rho(\mathbf{r})\tilde{V}(\mathbf{r}) d\mathbf{r}
+  = \frac{1}{N}\sum_{\mu\nu IJ} D_{\mu\nu}^{IJ} \tilde{V}_{\mu\nu}^{IJ}
+  \\
+  &=\frac{1}{N}\sum_{\mu\nu IJ} D_{\mu\nu}^{I,I+J} \tilde{V}_{\mu\nu}^{I,I+J}
+  = \frac{1}{N}\sum_{\mu\nu IJ} D_{\mu\nu}^{0,J} \tilde{V}_{\mu\nu}^{0,J}
   \label{}
-\end{equation}
+\end{align}
 $\rho$ is the actual density, $N$ is the number of unit cells in a super cell.
 
 In the above equations, the summation limits of AO indices $\mu,\nu,\dots$,
@@ -293,6 +295,9 @@ double cls::coul_matrix(const FSolidModel& solid,
       \varepsilon = \int_{\mathbf{r}\in C} \rho(\mathbf{r})\tilde{V}(\mathbf{r}) d\mathbf{r}
       \label{}
     \end{equation}
+  \item exception: raise an error if the number of electrons in terms of the
+    numerical integration is not 0.  A possible reason is the number of
+    mesh grids not enough.
 \end{itemize}
 %
 \item 
@@ -301,9 +306,12 @@ void cls::set_num_grids_in_unit_cell(const int n_a1,
         const int n_a2, const int n_a3);
 \end{verbatim}
 \begin{itemize}
-  \item uniform mesh grids are employed for numerical integration.
-    Set the number of grids along the 3 lattice vectors in a unit cell.
-    Default value is (20,20,20).
+  \item Set the number of grids along the 3 lattice vectors in a unit cell for
+    numerical integration.
+    This function needs to be invoked before calling \verb$cls::coul_lat_sum$
+    to replace the default mesh grid scheme.
+    Without calling this function, the default scheme will be used which has
+    the value (20,20,20).
 \end{itemize}
 \end{itemize}
 

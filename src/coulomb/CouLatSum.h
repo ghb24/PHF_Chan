@@ -19,11 +19,9 @@ double density_at_grid(const int grid_id);
 // value of density on each grid in a unit cell,
 // double *density is an array with the length of the number of grids in
 // a unit cell
-double density_unit_cell(double *density);
+void density_unit_cell(double *density);
 void init_env(const FSolidModel& solid, const FOpMatrix& den_mat);
 void del_env();
-
-
 
 
 

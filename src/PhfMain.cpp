@@ -121,12 +121,11 @@ int main(int argc, char *argv[])
 
    }
    
-   if (1) {
+   if (0) {
        // test coulomb lattice sum
        double coul_energy;
        coul_energy = cls::coul_matrix(Solid, Density, Coulomb); 
        xout << coul_energy << std::endl;
-       throw;
    }
 
 

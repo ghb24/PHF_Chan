@@ -74,7 +74,7 @@ vector pointing from $I$-th cell to $J$-th cell
   \mathbf{R}^{J-I} = \mathbf{R}^J - \mathbf{R}^I
   \label{}
 \end{equation}
-The periodic feature basis allows us to transform the basis of $I$-th cell to
+The periodic feature of basis function allows us to transform the basis of $I$-th cell to
 the basis of $0$-th cell
 \begin{equation}
   \mu^I(\mathbf{r}) = \mu^0(\mathbf{r}-\mathbf{R}^I)
@@ -285,10 +285,8 @@ double cls::coul_matrix(const FSolidModel& solid,
 \end{verbatim}
 \begin{itemize}
   \item function to get the Coulomb matrix.
-  \item input: \verb$den_mat$ is double array with dims [nAO, nAO $\times$
-    nUnitCells].  The array is in Fortran-contiguous order.
-  \item output: \verb$coul_mat$ is double array with dims [nAO, nAO $\times$
-    nUnitCells].  The array is in Fortran-contiguous order.
+  \item input: \verb$den_mat$ in Fortran-contiguous order.
+  \item output: \verb$coul_mat$ in Fortran-contiguous order.
   \item return: the energy in terms of the actual electron density $\rho$ and
     the modified potential $\tilde{V}$
     \begin{equation}
@@ -296,40 +294,17 @@ double cls::coul_matrix(const FSolidModel& solid,
       \label{}
     \end{equation}
 \end{itemize}
-
-\item \verb$void init_env(const FSolidModel& solid, const FOpMatrix& den_mat);$
-\item \verb$void cls::del_env();$
-\item \verb$void cls::set_background_charge(const double chg);$
+%
+\item 
+\begin{verbatim}
+void cls::set_num_grids_in_unit_cell(const int n_a1,
+        const int n_a2, const int n_a3);
+\end{verbatim}
 \begin{itemize}
-  \item replace the default background charge $\frac{N_{e}}{\Omega}$
+  \item uniform mesh grids are employed for numerical integration.
+    Set the number of grids along the 3 lattice vectors in a unit cell.
+    Default value is (20,20,20).
 \end{itemize}
-
-\item \verb$double cls::density_at_grid(const int *grid_id);$
-\begin{itemize}
-  \item value of density on the given grid
-\end{itemize}
-
-\item \verb$double cls::density_unit_cell(const double *density);$
-\begin{itemize}
-  \item value of density on each grid in a unit cell
-\end{itemize}
-
-%\item 
-%\begin{verbatim}
-%void cls::cells_accumulator((*cells_iter)(), (*loop_terminater)(),
-%        const int *grid_id, double *v, double *mat, double *ao);
-%\end{verbatim}
-%\begin{itemize}
-%  \item loop generator, to loop over cells in the super-cell.
-%\end{itemize}
-%\item 
-%\begin{verbatim}
-%void cls::grids_accumulator((*grids_iter)(),
-%        double *v, double *mat, double *ao);
-%\end{verbatim}
-%\begin{itemize}
-%  \item loop generator, to loop over cells in the super-cell.
-%\end{itemize}
 \end{itemize}
 
 \section{Reference}

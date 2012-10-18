@@ -27,6 +27,7 @@
 #include "AicDefs.h"
 #include "AicShells.h"
 #include "AicOsrr.h"
+#include "AicMdrr.h"
 #include "AicSolidHarmonics.h"
 
 #include <stdio.h>
@@ -489,6 +490,245 @@ void FIntegralFactory::EvalGrad2e2c( double *pOutA, double *pOutC, uint Strides[
 #endif // RUN_THROUGH_FORTRAN_INTERFACE_CORE_ROUTINES
 
 namespace aic {
+
+void ShTrN_Indirect(double *AIC_RP pOut, unsigned ns, double const *AIC_RP pIn, unsigned short const *AIC_RP ii, unsigned L, unsigned Count);
+
+
+// factorize [R] into [r] x S(la) with Am(R)==L, Am(r)==L-la
+static void FactorizeAngularComps1(double *rl, double const *R, uint NumRSets, uint TotalL, uint la)
+{
+   uint
+      nr1 = nCartY(TotalL - la), // number of [r]
+      nrR = nCartY(TotalL);
+   if (la == 0) {
+      memcpy(rl, R, sizeof(*R) * nrR*NumRSets);
+      return;
+   }
+   unsigned short const
+      *ii = iCartPxx[TotalL-la][la];
+   for ( uint i = 0; i < NumRSets; ++ i ) {
+      aic::ShTrN_Indirect(rl, nr1, R, ii, la, nr1);
+      rl += (2*la+1)*nr1;
+      R  += nrR;
+   }
+}
+
+// output: contracted kernels Fm(rho,T), format: (TotalL+1) x nCoA x nCoC
+void Int2e2c_EvalCoKernels(double *pCoFmT, uint TotalL,
+    FShellData const &ShA, FShellData const &ShC,
+    double PrefactorExt, FIntegralKernel const *pKernel, FMemoryStack &Mem)
+{
+   double
+      t = DistanceSq(ShA.vCenter, ShC.vCenter),
+      *pFmT;
+   Mem.Alloc(pFmT, TotalL + 1); // FmT for current primitive.
+
+   // loop over primitives (that's all the per primitive stuff there is)
+   for ( uint iExpC = 0; iExpC < ShC.nPrim; ++ iExpC )
+   for ( uint iExpA = 0; iExpA < ShA.nPrim; ++ iExpA )
+   {
+      double
+         Alpha = ShA.pExp[iExpA],
+         Gamma = ShC.pExp[iExpC],
+         InvEta = 1./(Alpha + Gamma),
+         Rho = (Alpha * Gamma)*InvEta, // = (Alpha * Gamma)*/(Alpha + Gamma)
+         Prefactor = (M_PI*InvEta)*std::sqrt(M_PI*InvEta); // = (M_PI/(Alpha+Gamma))^{3/2}
+
+      Prefactor *= PrefactorExt;
+      if(ShC.l) Prefactor *= std::pow( 1.0/(2*Gamma), (int)ShC.l); // <- use Hermites with D Ax := [1/(2 alpha)] \partial/\partial A_i.
+      if(ShA.l) Prefactor *= std::pow(-1.0/(2*Alpha), (int)ShA.l); // <- -1 because \partial_A R \propto -\partial_B R!
+
+      // calculate derivatives (D/Dt)^m exp(-rho t) with t = (A-C)^2.
+      pKernel->EvalGm(pFmT, Rho, Rho*t, TotalL, Prefactor);
+
+      // convert from Gm(rho,T) to Fm(rho,T) by absorbing powers of rho
+      // (those would normally be present in the R of the MDRR)
+      double
+         RhoPow = 1.;
+      for ( uint i = 0; i < TotalL + 1; ++ i ){
+         pFmT[i] *= RhoPow;
+         RhoPow *= 2*Rho;
+      }
+
+      // contract (lamely). However, normally either nCo
+      // or nExp, or TotalL (or even all of them at the same time)
+      // will be small, so I guess it's okay.
+      for ( uint iCoC = 0; iCoC < ShC.nCo; ++ iCoC )
+      for ( uint iCoA = 0; iCoA < ShA.nCo; ++ iCoA ) {
+         double CoAC = ShC.pCo[iExpC + ShC.nPrim*iCoC] *
+                       ShA.pCo[iExpA + ShA.nPrim*iCoA];
+         Add2(&pCoFmT[(TotalL+1)*(iCoA + ShA.nCo*iCoC)],
+               pFmT, CoAC, (TotalL+1));
+      }
+   }
+
+   Mem.Free(pFmT);
+}
+
+// evaluate 2-electron 2-center integrals <a|krn|c>.
+// if add is given: increment the output instead of overwriting it.
+void EvalInt2e2c( double *pOut, uint *Strides,
+    FShellData &ShA, FShellData &ShC, double Prefactor, bool Add,
+    FIntegralKernel const *pKernel, FMemoryStack &Mem )
+{
+   FVector3
+      R = ShA.vCenter - ShC.vCenter;
+   uint
+      lc = ShC.l, la = ShA.l,
+      nShA = 2*la+1, nShC = 2*lc+1,
+      iStA = Strides[0], iStC = Strides[1],
+      TotalL = la + lc;
+   double
+      *pCoFmT, *pDataR, *pR1, *pFinal;
+   Mem.ClearAlloc(pCoFmT, (TotalL+1)*ShA.nCo*ShC.nCo);
+   Int2e2c_EvalCoKernels(pCoFmT, TotalL, ShA, ShC, Prefactor, pKernel, Mem);
+
+   Mem.Alloc(pDataR, nCartY(TotalL));
+   Mem.Alloc(pR1, nCartY(TotalL-lc)*(2*lc+1));
+   Mem.Alloc(pFinal, (2*la+1)*(2*lc+1));
+
+   for ( uint iCoC = 0; iCoC < ShC.nCo; ++ iCoC )
+   for ( uint iCoA = 0; iCoA < ShA.nCo; ++ iCoA ) {
+      double
+         *pFmT = &pCoFmT[(TotalL+1)*(iCoA + ShA.nCo*iCoC)];
+      aic::ShellMdrr[TotalL]( &pDataR[0], &pFmT[0], &R[0] );
+      FactorizeAngularComps1(&pR1[0], &pDataR[0], 1,  TotalL, lc);
+      FactorizeAngularComps1(pFinal, &pR1[0], 2*lc+1,   TotalL-lc, la);
+      double
+         *pOutAB = &pOut[iCoA*nShA*iStA + iCoC*nShC*iStC];
+      aic::Scatter2e2c[Add](pOutAB, iStA,iStC, pFinal, la,lc);
+   }
+
+   Mem.Free(pCoFmT);
+};
+
+// evaluate 2-electron 2-center integrals <a|krn * laplace|c>
+// note: to obtain the kinetic energy operator, pass an overlap kernel
+//       and supply -.5 as Prefactor (ekin = -.5 laplace).
+// if add is given: increment the output instead of overwriting it.
+void EvalInt2e2c_LaplaceC( double *pOut, uint *Strides,
+    FShellData &ShA, FShellData &ShC, double Prefactor, bool Add,
+    FIntegralKernel const *pKernel, FMemoryStack &Mem )
+{
+   FVector3
+      R = ShA.vCenter - ShC.vCenter;
+   uint
+      lc = ShC.l, la = ShA.l,
+      nShA = 2*la+1, nShC = 2*lc+1,
+      iStA = Strides[0], iStC = Strides[1],
+      TotalLm2 = la + lc, TotalL = TotalLm2 + 2;
+   double
+      *pCoFmT, *pDataR, *pDataRm2, *pR1, *pFinal;
+   Mem.ClearAlloc(pCoFmT, (TotalL+1)*ShA.nCo*ShC.nCo);
+   Int2e2c_EvalCoKernels(pCoFmT, TotalL, ShA, ShC, Prefactor, pKernel, Mem);
+
+   Mem.Alloc(pDataR, nCartY(TotalL));
+   Mem.Alloc(pDataRm2, nCartY(TotalLm2));
+   Mem.Alloc(pR1, nCartY(TotalLm2-lc)*(2*lc+1));
+   Mem.Alloc(pFinal, (2*la+1)*(2*lc+1));
+
+   unsigned short const
+      *ic = iCartPxx[TotalLm2][2];
+   for ( uint iCoC = 0; iCoC < ShC.nCo; ++ iCoC )
+   for ( uint iCoA = 0; iCoA < ShA.nCo; ++ iCoA ) {
+      double
+         *pFmT = &pCoFmT[(TotalL+1)*(iCoA + ShA.nCo*iCoC)];
+      aic::ShellMdrr[TotalL]( &pDataR[0], &pFmT[0], &R[0] );
+
+      // form derivatives d/dxx + d/dyy + d/dzz. Due to our creative arrangement
+      // of terms, that is just a matter of picking up and adding some contributions
+      // from the larger shell MDRR intermediate.
+      for ( uint i = 0; i < nCartY(TotalLm2); ++ i )
+         pDataRm2[i] = pDataR[ic[6*i]] + pDataR[ic[6*i+1]] + pDataR[ic[6*i+2]];
+
+      FactorizeAngularComps1(&pR1[0], &pDataRm2[0], 1,  TotalLm2, lc);
+      FactorizeAngularComps1(pFinal, &pR1[0], 2*lc+1,   TotalLm2-lc, la);
+      double
+         *pOutAB = &pOut[iCoA*nShA*iStA + iCoC*nShC*iStC];
+      aic::Scatter2e2c[Add](pOutAB, iStA,iStC, pFinal, la,lc);
+   }
+
+   Mem.Free(pCoFmT);
+};
+
+// // r[i] += f * x[i]
+// template<class FScalar>
+// void Add2( FScalar *AIC_RP r, FScalar const *AIC_RP x, FScalar f, std::size_t n )
+// {
+//    std::size_t
+//       i = 0;
+//    for ( ; i < (n & (~3)); i += 4 ) {
+//       r[i]   += f * x[i];
+//       r[i+1] += f * x[i+1];
+//       r[i+2] += f * x[i+2];
+//       r[i+3] += f * x[i+3];
+//    }
+//    for ( ; i < n; ++ i ) {
+//       r[i] += f * x[i];
+//    }
+// };
+//
+// template
+// void Add2<double>( double *AIC_RP r, double const *AIC_RP x, double f, std::size_t n );
+//
+// // r[i] += f * x[i] * y[i]
+// template<class FScalar>
+// void Add2( FScalar *AIC_RP r, FScalar const *AIC_RP x, FScalar const *AIC_RP y, FScalar f, std::size_t n )
+// {
+//    std::size_t
+//       i = 0;
+//    for ( ; i < (n & (~3)); i += 4 ) {
+//       r[i]   += f * x[i]   * y[i];
+//       r[i+1] += f * x[i+1] * y[i+1];
+//       r[i+2] += f * x[i+2] * y[i+2];
+//       r[i+3] += f * x[i+3] * y[i+3];
+//    }
+//    for ( ; i < n; ++ i ) {
+//       r[i] += f * x[i] * y[i];
+//    }
+// };
+//
+// template
+// void Add2<double>( double *AIC_RP r, double const *AIC_RP x, double const *AIC_RP y, double f, std::size_t n );
+//
+// ^- suncc doesn't get it.
+
+// r[i] += f * x[i]
+void Add2( double *AIC_RP r, double const *AIC_RP x, double f, std::size_t n )
+{
+   std::size_t
+      i = 0;
+   for ( ; i < (n & (~3)); i += 4 ) {
+      r[i]   += f * x[i];
+      r[i+1] += f * x[i+1];
+      r[i+2] += f * x[i+2];
+      r[i+3] += f * x[i+3];
+   }
+   for ( ; i < n; ++ i ) {
+      r[i] += f * x[i];
+   }
+}
+
+
+// r[i] += f * x[i] * y[i]
+void Add2( double *AIC_RP r, double const *AIC_RP x, double const *AIC_RP y, double f, std::size_t n )
+{
+   std::size_t
+      i = 0;
+   for ( ; i < (n & (~3)); i += 4 ) {
+      r[i]   += f * x[i]   * y[i];
+      r[i+1] += f * x[i+1] * y[i+1];
+      r[i+2] += f * x[i+2] * y[i+2];
+      r[i+3] += f * x[i+3] * y[i+3];
+   }
+   for ( ; i < n; ++ i ) {
+      r[i] += f * x[i] * y[i];
+   }
+}
+
+
+
+
 
 void FIntegralFactory::EvalInt2e2c( double *pOut, uint Strides_[2], double OutputFactor,
       FGaussShell const &ShellA, FGaussShell const &ShellC, FMemoryStack &Mem )

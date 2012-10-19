@@ -80,9 +80,32 @@ void FBasisSet::AddAicShell(aic::FGaussShell const &Shell)
    gi.iCen = Centers.size();
    assert((signed)Centers.size() == Shell.iCenter);
 
-   // TODO: calculate effective range of the basis function.
+   double
+      fRange = 1e20;
+   // calculate effective range of the basis function.
+   if ( 1 ) {
+      FORTINT
+         nGridResolution = 500,
+         nWork = (2+gi.nCo) * nGridResolution;
+      FMemoryStack2
+         Mem(gi.nCo + 1000 + nWork*sizeof(double));
+      double
+         ThrDen = 1e-6, // that's a threshold on the neglected number of electrons.
+         *pRangeCo,
+         *pWork;
+      Mem.Alloc(pRangeCo, gi.nCo);
+      Mem.Alloc(pWork, nWork);
+      AIC_FIND_BFN_RANGE(pRangeCo, &Data[gi.iExp], gi.nExp, &Data[gi.iCo], gi.nCo,
+         gi.l, ThrDen, nGridResolution, pWork, nWork);
+      // i guess we have to store the largest range of any contracted function
+      // in the group.
+      fRange = 0;
+      for (FORTINT iCo = 0; iCo < gi.nCo; ++ iCo)
+         fRange = std::max(fRange, pRangeCo[iCo]);
+      Mem.Free(pRangeCo);
+   }
    gi.iRange = Data.size();
-   Data.push_back(1e20);
+   Data.push_back(fRange);
    Groups.push_back(gi);
    Centers.push_back(Shell.vCenter);
 };

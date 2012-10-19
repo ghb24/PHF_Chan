@@ -72,9 +72,17 @@ static void cells_accumulator(FCellIter_t func, FCellTruncate_t ftrunc,
                               double *v, double *mat, double *ao)
 {
     int cell_id[3];
-    for (int ix = 0; ix < _env->p_super_cell->Size[0]; ix++)
-        for (int iy = 0; iy < _env->p_super_cell->Size[1]; iy++)
-            for (int iz = 0; iz < _env->p_super_cell->Size[2]; iz++) {
+    // FIXME: shift the 0th-cell to the center of the super cell?
+    // division should be rounded down
+    int nx0 =-(_env->p_super_cell->Size[0] - 1) / 2;
+    int nx1 =  _env->p_super_cell->Size[0] / 2;
+    int ny0 =-(_env->p_super_cell->Size[1] - 1) / 2;
+    int ny1 =  _env->p_super_cell->Size[1] / 2;
+    int nz0 =-(_env->p_super_cell->Size[2] - 1) / 2;
+    int nz1 =  _env->p_super_cell->Size[2] / 2;
+    for (int ix = nx0; ix < nx1; ix++)
+        for (int iy = ny0; iy < ny1; iy++)
+            for (int iz = nz0; iz < nz1; iz++) {
                 cell_id[0] = ix;
                 cell_id[1] = iy;
                 cell_id[2] = iz;
@@ -287,14 +295,8 @@ static void coul_matrix_cell_iter(const int grid_id, const int cell_id[3],
 {
     double cell_coord[3];
     double coord[3];
-    int cell_id_shift[3];
-    // FIXME: shift the 0th-cell to the center of the super cell?
-    // division should be rounded down
-    cell_id_shift[0] = cell_id[0] - _env->p_super_cell->Size[0]/2;
-    cell_id_shift[1] = cell_id[1] - _env->p_super_cell->Size[1]/2;
-    cell_id_shift[2] = cell_id[2] - _env->p_super_cell->Size[2]/2;
     grid_coord_by_grid_id(grid_id, coord);
-    cell_coord_by_cell_id(cell_id_shift, cell_coord);
+    cell_coord_by_cell_id(cell_id, cell_coord);
     coord[0] += cell_coord[0];
     coord[1] += cell_coord[1];
     coord[2] += cell_coord[2];

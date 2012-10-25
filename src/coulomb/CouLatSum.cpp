@@ -60,6 +60,18 @@ struct maybe_env_t {
 static struct maybe_env_t *_env;
 static double _default_num_grids_in_unit_cell[3] = {20, 20, 20};
 
+typedef struct {
+    int cell_id[3];
+    int grid_id;
+    double *v;
+    double *mat;
+    double *ao;
+} message_t;
+
+typedef void (*FCellIter_t)(message_t& msg);
+typedef void (*FGridIter_t)(message_t& msg);
+typedef int (*FCellTruncate_t)(message_t& msg);
+
 /*
  **************************************************
  * local funcs
@@ -67,11 +79,11 @@ static double _default_num_grids_in_unit_cell[3] = {20, 20, 20};
  * data flow:
  * -> cells_accumulator -> grids_accumulator ->
  */
+// loop over every cell in a super cell
+// FIXME: upper and lower limits? maybe include the neighbour super cell
 static void cells_accumulator(FCellIter_t func, FCellTruncate_t ftrunc,
-                              const int grid_id,
-                              double *v, double *mat, double *ao)
+                              message_t& msg)
 {
-    int cell_id[3];
     // FIXME: shift the 0th-cell to the center of the super cell?
     // division should be rounded down
     int nx0 =-(_env->p_super_cell->Size[0] - 1) / 2;
@@ -83,25 +95,24 @@ static void cells_accumulator(FCellIter_t func, FCellTruncate_t ftrunc,
     for (int ix = nx0; ix < nx1; ix++)
         for (int iy = ny0; iy < ny1; iy++)
             for (int iz = nz0; iz < nz1; iz++) {
-                cell_id[0] = ix;
-                cell_id[1] = iy;
-                cell_id[2] = iz;
-                if (!(*ftrunc)(cell_id)) {
-                    (*func)(grid_id, cell_id, v, mat, ao);
+                msg.cell_id[0] = ix;
+                msg.cell_id[1] = iy;
+                msg.cell_id[2] = iz;
+                if (!(*ftrunc)(msg)) {
+                    (*func)(msg);
                 }
             }
 }
 
-static void grids_accumulator(FGridIter_t func,
-                              double *v, double *mat, double *ao)
+// loop over every grid in a unit cell
+static void grids_accumulator(FGridIter_t func, message_t& msg)
 {
-    int grid_id = 0;
+    msg.grid_id = 0;
     for (int ix = 0; ix < _env->p_grid3d->num_x; ix++)
         for (int iy = 0; iy < _env->p_grid3d->num_y; iy++)
             for (int iz = 0; iz < _env->p_grid3d->num_z; iz++) {
-                (*func)(grid_id, v, mat, ao);
-                grid_id++;
-                v++;
+                (*func)(msg);
+                msg.grid_id++;
             }
 }
 /***************** accumulator end ****************/
@@ -113,7 +124,7 @@ static void grids_accumulator(FGridIter_t func,
  * see the function cells_accumulator
  */
 // TODO:
-//static int is_cell_far(int cell_id[3])
+//static int is_cell_far(message_t& msg)
 //{
 //    if (SUPER_CELL_INFO or cutoff_info) {
 //        return 1; // remote cell
@@ -122,7 +133,7 @@ static void grids_accumulator(FGridIter_t func,
 //    }
 //}
 
-static int cover_whole_super_cell(int cell_id[3])
+static int cover_whole_super_cell(message_t& msg)
 {
     return 0;
 }
@@ -226,104 +237,85 @@ static void ao_super_cell(const double grid_coord[3], double *ao)
 
 // for a given grid_id in 0-th cell,
 // iterate this fn in cells_accumulator to run over all the image grids
-static void density_cell0(const int grid_id, const int cell_id[3],
-                          double *v, double *dmat, double *ao)
+static void density_cell0(message_t& msg)
 {
     //TODO: call grids_accumulator here to make grids inner-loop
     double cell_coord[3];
     double coord[3];
-    grid_coord_by_grid_id(grid_id, coord);
-    cell_coord_by_cell_id(cell_id, cell_coord);
+    grid_coord_by_grid_id(msg.grid_id, coord);
+    cell_coord_by_cell_id(msg.cell_id, cell_coord);
     coord[0] += -cell_coord[0];
     coord[1] += -cell_coord[1];
     coord[2] += -cell_coord[2];
-    ao_super_cell(coord, ao);
+    ao_super_cell(coord, msg.ao);
 
     int n_mu = _env->p_den_mat->nRows;
     int n_nu = _env->p_den_mat->nCols;
-    *v += dtrace_vmv(n_mu, n_nu, ao, ao, dmat);
+    msg.v[msg.grid_id] += dtrace_vmv(n_mu, n_nu, msg.ao, msg.ao, msg.mat);
 }
 
 // grid_id is constrained in 0-th cell,
 // v is the value of density corresponding to the given grid_id
-static void density_grid_iter(const int grid_id,
-                              double *v, double *dmat, double *ao)
+static void density_grid_iter(message_t& msg)
 {
-    *v = 0;
-    cells_accumulator(density_cell0, cover_whole_super_cell,
-                      grid_id, v, (double *)&_env->p_den_mat->Data[0], ao);
-    *v += -_env->background_chg;
-}
-
-// grid_id of one cell
-double density_at_grid(const int grid_id)
-{
-    std::vector<double> ao(_env->p_den_mat->nCols);
-    double den;
-    density_grid_iter(grid_id,
-                      &den,
-                      const_cast<double *>(&(*_env->p_den_mat)[0]), &ao[0]);
-    return den;
+    msg.v[msg.grid_id] = 0;
+    cells_accumulator(density_cell0, cover_whole_super_cell, msg);
+    msg.v[msg.grid_id] += -_env->background_chg;
 }
 
 void density_unit_cell(double *density)
 {
     std::vector<double> ao(_env->p_den_mat->nCols);
-    grids_accumulator(density_grid_iter,
-                      density,
-                      const_cast<double *>(&(*_env->p_den_mat)[0]), &ao[0]);
+    message_t msg;
+    msg.v = density;
+    msg.ao = &ao[0];
+    msg.mat = const_cast<double *>(&(*_env->p_den_mat)[0]);
+    grids_accumulator(density_grid_iter, msg);
+    msg.v = NULL;
+    msg.ao = NULL;
+    msg.mat = NULL;
 }
-//double density_unit_cell(double *density)
-//{
-//    LOGGER(DEBUG, "density on each grid starts");
-//    double nele = 0;
-//    int grid_id = 0;
-//    for (int ix = 0; ix < _env->p_grid3d->num_x; ix++)
-//        for (int iy = 0; iy < _env->p_grid3d->num_y; iy++)
-//            for (int iz = 0; iz < _env->p_grid3d->num_z; iz++) {
-//                density[grid_id] = density_at_grid(grid_id);
-//                nele += _env->grid_weight * density[grid_id];
-//                grid_id++;
-//            }
-//    return nele;
-//}
 
 // for a given grid_id in 0-th cell,
 // iterate this fn in cells_accumulator to run over all the image grids
-static void coul_matrix_cell_iter(const int grid_id, const int cell_id[3],
-                                  double *v, double *dmat, double *ao)
+static void coul_matrix_cell_iter(message_t& msg)
 {
     double cell_coord[3];
     double coord[3];
-    grid_coord_by_grid_id(grid_id, coord);
-    cell_coord_by_cell_id(cell_id, cell_coord);
+    grid_coord_by_grid_id(msg.grid_id, coord);
+    cell_coord_by_cell_id(msg.cell_id, cell_coord);
     coord[0] += cell_coord[0];
     coord[1] += cell_coord[1];
     coord[2] += cell_coord[2];
-    ao_super_cell(coord, ao);
+    ao_super_cell(coord, msg.ao);
 
     int n_mu = _env->p_den_mat->nRows;
     int n_nu = _env->p_den_mat->nCols;
     const int INC1 = 1;
-    double vw = *v * _env->grid_weight;
-    dger_(&n_mu, &n_nu, &vw, ao, &INC1, ao, &INC1, dmat, &n_mu);
+    double vw = msg.v[msg.grid_id] * _env->grid_weight;
+    dger_(&n_mu, &n_nu, &vw, msg.ao, &INC1, msg.ao, &INC1, msg.mat, &n_mu);
 }
 
 // iterate this fn in grids_accumulator to run over all grids in the unit cell
-static void coul_matrix_grid_iter(const int grid_id,
-                                  double *v, double *dmat, double *ao)
+static void coul_matrix_grid_iter(message_t& msg)
 {
-    cells_accumulator(coul_matrix_cell_iter, cover_whole_super_cell,
-                      grid_id, v, dmat, ao);
+    cells_accumulator(coul_matrix_cell_iter, cover_whole_super_cell, msg);
 }
 
-static void coul_matrix_acc(double *real_space_pot, double *vmat)
+static void coul_matrix_acc(const double *real_space_pot, double *vmat)
 {
     LOGGER(DEBUG, "coul_matrix_acc starts");
     std::vector<double> ao(_env->p_den_mat->nCols);
-    dset0((int)_env->p_den_mat->size(), vmat);
+    message_t msg;
+    msg.v = const_cast<double *>(real_space_pot);
+    msg.ao = &ao[0];
+    msg.mat = vmat;
+    dset0((int)_env->p_den_mat->size(), msg.mat);
     // accumulate all the grids in 0-th cell
-    grids_accumulator(coul_matrix_grid_iter, real_space_pot, vmat, &ao[0]);
+    grids_accumulator(coul_matrix_grid_iter, msg);
+    msg.v = NULL;
+    msg.ao = NULL;
+    msg.mat = NULL;
 }
 
 // init after construct obj grid3d
@@ -546,10 +538,10 @@ double coul_matrix(const FSolidModel& solid, const FOpMatrix& den_mat,
     LOGGER(DEBUG, "density_unit_cell ends");
 #else
     if (std::abs(nele) > 1e-5) {
-        std::stringstream msg;
-        msg << "Incorrect number of electron! " << nele;
-        std::cerr << msg.str() << std::endl;
-        throw msg.str();
+        std::stringstream err_txt;
+        err_txt << "Incorrect number of electron! " << nele;
+        std::cerr << err_txt.str() << std::endl;
+        throw err_txt.str();
     }
 #endif
     // FFT Poisson solver

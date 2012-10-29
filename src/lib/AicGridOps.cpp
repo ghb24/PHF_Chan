@@ -1,5 +1,28 @@
+#include <stdexcept>
 #include "AicGridOps.h"
 #include "AicSolidHarmonics.h"
+
+#ifdef _DEBUG
+   #include <iostream>
+   #include <boost/format.hpp>
+   using boost::format;
+   using std::cout;
+   using std::endl;
+
+
+   static void PrintArray(char const *pTitle, double *pValues, uint nValues, int nStep = -1, char const *pFmt = "%11.5f")
+   {
+      if ( nStep == -1 ) {
+         // find a reasonable step size such that we get coverage of the entire
+         // array but don't print out more than ~10-15 numbers.
+         nStep = (12+nValues)/13;
+      }
+      cout << format("[%5i] %-20s") % nValues % pTitle;
+      for ( uint i = 0; i < nValues; i += nStep )
+         cout << format(pFmt) % pValues[i];
+      cout << "\n";
+   }
+#endif
 
 
 namespace aic {
@@ -470,6 +493,186 @@ void EvalShellGroupOnGrid( double *pOut, uint nCompStride, uint nBfStride,
 
    Mem.Free(pBaseOfStorage);
 }
+
+// Evaluate the radial part of a contracted Gauss function:
+//    Out = r^l * \sum_i c[i] Exp[-zeta_i r^2]
+// for a number of (input) radii. Output is a nRadii x nCo matrix,
+// pOut[iPt + nRadii*iCo] giving the value of the radial basis function at point
+// iPt for function iCo.
+extern "C" {
+void AIC_EVAL_BFN_RADIAL(double *AIC_RP pOut,
+   double *AIC_RP pExp, FORTINT const &nExp, double *AIC_RP pCo, FORTINT const &nCo, FORTINT const &l,
+   double *AIC_RP pRadii, FORTINT const &nRadii)
+{
+   // exp(-50) ~= 2e-22.  36 would be good for 2e-16, but let's put some leeway into it.
+   double const
+      LogThrOrb = 50;
+   uint const
+      nMaxExp = 64; // not nice, but this way we need to deal with memory from the outside.
+   if ( nExp > nMaxExp )
+      throw std::runtime_error("aic_eval_bfn_radial ran out of memory. Too many exponents in contracted basis function!");
+
+   for ( FORTINT iPt = 0; iPt < nRadii; ++ iPt ) {
+      double
+         pExpV[nMaxExp],
+         fDist = pRadii[iPt], // <- need that unsquared for r^l with odd l.
+         fDistSq = fDist*fDist;
+      for ( FORTINT iExp = 0; iExp < nExp; ++ iExp ){
+         double fExp = pExp[iExp];
+         if ( fDistSq * fExp > LogThrOrb )
+            pExpV[iExp] = 0;
+         else
+            pExpV[iExp] = std::exp(-fDistSq * fExp);
+      };
+      double const
+         fPowR = std::pow(fDist, (int)l);
+      for ( FORTINT iCo = 0; iCo < nCo; ++ iCo) {
+         // now the total contracted function.
+         double
+            v0 = 0;
+         for ( uint iExp = 0; iExp < nExp; ++ iExp )
+            v0 += pCo[iExp] * pExpV[iExp];
+         pOut[iPt + nRadii*iCo] = fPowR * v0;
+      }
+   }
+};
+} // extern "C"
+
+
+// c/p'd from CtDftGrid.cpp
+void MakeAtomRadialGrid(double *r, double *w, uint n, double AtomicScale)
+{
+   // main references:
+   //   [1] JCP 102 346 (1995)   (Treutler & Ahlrichs)
+   //   [2] JCP 108 3226 (1998)  (Krack & Koester)
+   //   [3] JCP 88 2547 (1988)   (Becke)
+   //   [4] JCP 104 9848 (1996)  (Mura & Knowles)
+   double
+      den = 1./(n+1.),
+      ln05 = 1./std::log(2.),
+      R = AtomicScale,
+      Alpha = 0.6;
+   // [1]; (T2) and (M4).
+   // formula for T2: [2], eq.(9) and (10)
+   for ( uint i = 1; i <= n; ++ i ){
+      double
+         // xi: -1 .. +1, wi: weights in that range.
+         // will later be mapped to actual range.
+         xi,wi,
+         // derivative d[ri]/d[xi] (for weight)
+         dri;
+      if ( 0 ) {
+         // chebychev pos&weights: beware of i starting at 1!
+         double
+            SinPhase = std::sin(i*M_PI*den),
+            CosPhase = std::cos(i*M_PI*den),
+            SinPhase2 = SinPhase*SinPhase;
+            // T2 Chebychev abscissa x[i] (goes from (-1..+1), exclusive)
+         xi = ((int)n + 1 - 2*(int)i)*den + (2./M_PI)*(1. + (2./3.)*SinPhase2)*
+            CosPhase * SinPhase,
+         // weight w[i].
+         wi = (16./3.) * den * (SinPhase2 * SinPhase2);
+      } else {
+         // uniform weights. Should work fine for logarithmic grids.
+         xi = ((int)n + 1 - 2*(int)i)*den;
+         wi = 2.*den;
+      }
+
+      // note on a: the strange comments in [1] (eq. 20) refer to the
+      // integration scheme: if integrating with a x = [0..1] quadrature scheme,
+      // we should use a = 0, if using a x = [-1..1] quadrature scheme (like the T2
+      // we employ here), then a = 1. A does thus not occur in the formulas
+
+      // make mapping of x to actual radius, and init the grid weight to actual radii.
+      if ( 1 ) {
+         double r2 = 5.;
+         double x = .5*xi + 0.5;
+         r[i-1] = -r2 * std::log(1.0-x*x*x); // Mura & Knowles Log3 grid.
+         dri = .5 * r2*3*x*x/(1.-x*x*x);
+      } else if ( 0 ) {
+         // simple logarithmic grid. works well with T2.
+         r[i-1] = R*ln05*std::log(2./(1.-xi));
+         dri = R*ln05/(1. - xi); // that is : dri/dxi = R/(1. - xi)
+      } else {
+         // Ahlrichs M4... works with simple linear weighting.
+         double
+            PowAlpha = std::pow(1 + xi, Alpha),
+            Log2x = std::log(2/(1.-xi));
+         r[i-1] = R*ln05* PowAlpha * Log2x;
+         dri = R*ln05*PowAlpha*(1/(1.-xi) + Alpha * Log2x / (1 + xi));
+      }
+      w[i-1] = dri * wi * 4.*M_PI*r[i-1]*r[i-1]; // and that is the radial volume element.
+   }
+}
+
+
+
+// Find the effective range of a contracted basis function shell by explicitly
+// evaluating the basis functions on a radial grid.
+//
+//  pOut[iCo] = (range r for which the integral Int[r,Infty] mu^2(r) d^3r <= ThrDen).
+//
+// i.e., ThrDen is a threshold on the neglected *electron number*. If we put one
+// electron onto the basis function, r is the radius at which we lose less than
+// ThrDen electrons if we neglect the function beyond that r. For this to work
+// the input functions should best be of split-valence type.
+//
+// pWork must have room for at least nResolution x (2+nCo) scalars.
+extern "C" {
+void AIC_FIND_BFN_RANGE(double *AIC_RP pOut,
+   double *AIC_RP pExp, FORTINT const &nExp, double *AIC_RP pCo, FORTINT const &nCo, FORTINT const &l,
+   double const &ThrDen, FORTINT const &nResolution, double *pWork, FORTINT const &nWork)
+{
+   uint
+      nPt = nResolution;
+   if ( nWork < (nCo+2) * nPt )
+      throw std::runtime_error("aic_find_bfn_range: provided work space is too small.");
+   uint const
+      nMaxCo = 64;
+   if ( nCo > nMaxCo )
+      throw std::runtime_error("aic_find_bfn_range ran out of memory. Too many contractions in contracted basis function!");
+   double
+      *pRadii = pWork,
+      *pWeights = pWork + 1 * nPt,
+      *pValues = pWork + 2 * nPt;
+   // set up a dft-style logarithmic grid for the radial points
+   MakeAtomRadialGrid(pRadii, pWeights, nPt, 1.0);
+   // evaluate the basis functions on the grid...
+   AIC_EVAL_BFN_RADIAL(pValues, pExp, nExp, pCo, nCo, l, pRadii, nPt);
+
+#if 0
+   cout << format("Radial grids, weights, and values:\n");
+   PrintArray("Radii", pRadii, nPt);
+   PrintArray("Weights", pWeights, nPt);
+   PrintArray("Values", pValues, nPt);
+#endif
+
+   // ...and now go through the grid to find the effective ranges.
+   double
+      fDen[nMaxCo];
+   for ( uint iCo = 0; iCo < nCo; ++ iCo ) {
+      pOut[iCo] = 1e30;
+      fDen[iCo] = 0.;
+   }
+   for ( uint iPt = 0; iPt < nPt; ++ iPt ) {
+      for ( uint iCo = 0; iCo < nCo; ++ iCo ) {
+         fDen[iCo] += pWeights[iPt] * aic::sqr(pValues[iPt + iCo*nPt]);
+         if ( fDen[iCo] < ThrDen )
+            pOut[iCo] = pRadii[iPt];
+      }
+   };
+#if 0
+   // check if this works: if you put in normalized functions, fDen should now be about 1
+   cout << format("AicFindRange(nExp=%i, nCo=%i, l=%i):\n") % nExp % nCo % l;
+   PrintArray("Integrated densities", &fDen[0], nCo);
+   PrintArray("Effective ranges", pOut, nCo);
+#endif
+};
+} // extern "C"
+
+
+
+
 
 
 } // namespace aic

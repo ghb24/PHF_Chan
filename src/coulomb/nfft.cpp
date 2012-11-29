@@ -22,8 +22,8 @@ fftw_plan p;
 p= fftw_plan_dft_r2c_3d(L1,L2,L3,rau_r,rau_k,FFTW_ESTIMATE);
 fftw_execute(p);
 fftw_destroy_plan(p);
-rau_k[0][0] = 0  ;
-rau_k[0][1] = 0  ;
+//rau_k[0][0] = 0  ;
+//rau_k[0][1] = 0  ;
 //!sfor (int i=1;i<N;i++){
 //!s rau_k[i][0] = rau_k[i][0]/2/M_PI ;
 //!s rau_k[i][1] = rau_k[i][1]/2/M_PI ;
@@ -71,7 +71,7 @@ fai_k = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * (L1 * L2 * (L3/2+1)))
 fourier_first( L1, L2, L3, rau_r,fai_k );
 // moved from fourier_first
 double k2_inv;
-for (int k_id = 1; k_id < N; k_id++) {
+for (int k_id = 1; k_id < L1 * L2 * (L3/2+1); k_id++) {
     k2_inv = 4 * M_PI / k_dot_k(kgrids + k_id * 3);
     fai_k[k_id][0] = fai_k[k_id][0] * k2_inv;
     fai_k[k_id][1] = fai_k[k_id][1] * k2_inv;

@@ -64,8 +64,8 @@ typedef struct {
     int cell_id[3];
     int grid_id;
     double *v;
-    double *mat;
     double *ao;
+    double *mat;
 } message_t;
 
 typedef void (*FCellIter_t)(message_t& msg);
@@ -86,12 +86,12 @@ static void cells_accumulator(FCellIter_t func, FCellTruncate_t ftrunc,
 {
     // FIXME: shift the 0th-cell to the center of the super cell?
     // division should be rounded down
-    int nx0 =-(_env->p_super_cell->Size[0] - 1) / 2;
-    int nx1 =  _env->p_super_cell->Size[0] / 2;
-    int ny0 =-(_env->p_super_cell->Size[1] - 1) / 2;
-    int ny1 =  _env->p_super_cell->Size[1] / 2;
-    int nz0 =-(_env->p_super_cell->Size[2] - 1) / 2;
-    int nz1 =  _env->p_super_cell->Size[2] / 2;
+    int nx0 = -_env->p_super_cell->Size[0] / 2;
+    int nx1 = (_env->p_super_cell->Size[0] + 1) / 2;
+    int ny0 = -_env->p_super_cell->Size[1] / 2;
+    int ny1 = (_env->p_super_cell->Size[1] + 1) / 2;
+    int nz0 = -_env->p_super_cell->Size[2] / 2;
+    int nz1 = (_env->p_super_cell->Size[2] + 1) / 2;
     for (int ix = nx0; ix < nx1; ix++)
         for (int iy = ny0; iy < ny1; iy++)
             for (int iz = nz0; iz < nz1; iz++) {
@@ -380,7 +380,7 @@ void init_env(const FSolidModel& solid, const FOpMatrix& den_mat)
                << ", l =  " << _env->p_bas->Groups[i].l
                << ", Type = " << _env->p_bas->Groups[i].Type
                << ", iCen = " << _env->p_bas->Groups[i].iCen
-               << ", Range = " << _env->p_bas->Data[_env->p_bas->Groups[i].iCen]);
+               << ", Range = " << _env->p_bas->Data[_env->p_bas->Groups[i].iRange]);
         LOGGER(DEBUG, "     "
                << " [iExp..] = " << _env->p_bas->Data[_env->p_bas->Groups[i].iExp]
                << ",[iCo..] = " << _env->p_bas->Data[_env->p_bas->Groups[i].iCo]);
@@ -412,6 +412,9 @@ void init_env(const FSolidModel& solid, const FOpMatrix& den_mat)
     double vol = solid.UnitCell.Volume;
     LOGGER(DEBUG, "unit cell vol = " << vol);
     _env->background_chg = nele / vol;
+#if defined DEBUG
+    _env->background_chg = 0;
+#endif
     LOGGER(DEBUG, "set background charge to unit cell average charge = "
            << _env->background_chg);
 
@@ -421,9 +424,6 @@ void init_env(const FSolidModel& solid, const FOpMatrix& den_mat)
                                        _default_num_grids_in_unit_cell[0],
                                        _default_num_grids_in_unit_cell[1],
                                        _default_num_grids_in_unit_cell[2]);
-#if defined DEBUG
-    _env->p_grid3d->set_ngrid(1, 1, 2);
-#endif
     LOGGER(DEBUG, "unit cell grid numbers (x,y,z,total) = ("
            << _env->p_grid3d->num_x << ","
            << _env->p_grid3d->num_y << ","
@@ -455,22 +455,40 @@ void del_env()
  * for Poisson equation FFT solver
  * size of array kcoords >= size_of [_env->p_grid3d->num_grid][3]
  */
-static void kspace_grids_generator(double *kcoords)
+static void kspace_grids_generate(double *kcoords)
 {
-    for (int ix = 0; ix < _env->p_grid3d->num_x; ix++)
-        for (int iy = 0; iy < _env->p_grid3d->num_y; iy++)
-            for (int iz = 0; iz < _env->p_grid3d->num_z; iz++) {
-                kcoords[0] = _env->p_lattice->K[0][0] * ix / _env->p_grid3d->num_x
-                           + _env->p_lattice->K[1][0] * iy / _env->p_grid3d->num_y
-                           + _env->p_lattice->K[2][0] * iz / _env->p_grid3d->num_z;
-                kcoords[1] = _env->p_lattice->K[0][1] * ix / _env->p_grid3d->num_x
-                           + _env->p_lattice->K[1][1] * iy / _env->p_grid3d->num_y
-                           + _env->p_lattice->K[2][1] * iz / _env->p_grid3d->num_z;
-                kcoords[2] = _env->p_lattice->K[0][2] * ix / _env->p_grid3d->num_x
-                           + _env->p_lattice->K[1][2] * iy / _env->p_grid3d->num_y
-                           + _env->p_lattice->K[2][2] * iz / _env->p_grid3d->num_z;
+    int x, y, z;
+    for (int ix = 0; ix < _env->p_grid3d->num_x; ix++) {
+        if (ix < _env->p_grid3d->num_x/2) {
+            x = ix;
+        } else {
+            x = ix - _env->p_grid3d->num_x;
+        }
+        for (int iy = 0; iy < _env->p_grid3d->num_y; iy++) {
+            if (iy < _env->p_grid3d->num_y/2) {
+                y = iy;
+            } else {
+                y = iy - _env->p_grid3d->num_y;
+            }
+            for (int iz = 0; iz < _env->p_grid3d->num_z/2+1; iz++) {
+                if (iz < _env->p_grid3d->num_z/2) {
+                    z = iz;
+                } else {
+                    z = iz - _env->p_grid3d->num_z;
+                }
+                kcoords[0] = _env->p_lattice->K[0][0] * x
+                           + _env->p_lattice->K[1][0] * y
+                           + _env->p_lattice->K[2][0] * z;
+                kcoords[1] = _env->p_lattice->K[0][1] * x
+                           + _env->p_lattice->K[1][1] * y
+                           + _env->p_lattice->K[2][1] * z;
+                kcoords[2] = _env->p_lattice->K[0][2] * x
+                           + _env->p_lattice->K[1][2] * y
+                           + _env->p_lattice->K[2][2] * z;
                 kcoords += 3;
             }
+        }
+    }
 }
 
 /*
@@ -499,11 +517,17 @@ double coul_matrix(const FSolidModel& solid, const FOpMatrix& den_mat,
 {
     LOGGER(DEBUG, "coul_matrix starts");
 #if defined DEBUG
+    _default_num_grids_in_unit_cell[0] = 64;
+    _default_num_grids_in_unit_cell[1] = 64;
+    _default_num_grids_in_unit_cell[2] = 64;
     FOpMatrix dm_tmp = den_mat;
-    for (unsigned int i =0; i<dm_tmp.size(); i++) {
-        //dm_tmp[i] = cos(i);
-        dm_tmp[i] = i*.1;
+    for (unsigned int i = 0; i<dm_tmp.size(); i++) {
+        dm_tmp[i] = 0;
     }
+    dm_tmp[0 ] = 0.988613004902149;
+    dm_tmp[1 ] = 0.988613004902149;
+    dm_tmp[2 ] = 0.988613004902149;
+    dm_tmp[3 ] = 0.988613004902149;
     init_env(solid, dm_tmp);
 #else
     init_env(solid, den_mat);
@@ -547,7 +571,7 @@ double coul_matrix(const FSolidModel& solid, const FOpMatrix& den_mat,
     // FFT Poisson solver
     LOGGER(DEBUG, "call poisson solver");
     std::vector<double> kspace_grids(_env->p_grid3d->num_grid * 3);
-    kspace_grids_generator(&kspace_grids[0]);
+    kspace_grids_generate(&kspace_grids[0]);
     poisson_kspace_solver(&real_space_density[0], &real_space_pot[0],
                           _env->p_grid3d, &kspace_grids[0]);
     // Coulomb matrix
@@ -561,6 +585,9 @@ double coul_matrix(const FSolidModel& solid, const FOpMatrix& den_mat,
 #if defined DEBUG
     double e = ddot_(&n, &coul_mat[0], &INC1, &dm_tmp[0], &INC1)
             / _env->n_unit_cell_in_super_cell;
+    for (unsigned int i = 0; i<dm_tmp.size(); i++) {
+        std::cout << "  " << i << "  " << coul_mat[i] << std::endl;
+    }
 #else
     double e = ddot_(&n, &coul_mat[0], &INC1, &den_mat[0], &INC1)
             / _env->n_unit_cell_in_super_cell;

@@ -35,7 +35,24 @@ int main(int argc, char *argv[])
 //       ScfOptions = {1e-8, 1e-8};
    FSolidModel
       Solid;
+#define DEBUG_CLS
+#if defined DEBUG_CLS
+   double f = 8;
+   Solid.Lattice = FLattice(
+      f*FVector3(1.00,0.00,0.00),
+      f*FVector3(0.00,1.00,0.00),
+      f*FVector3(0.00,0.00,1.00) );
 
+   FBasisDescs DefaultBases;
+   DefaultBases[BASIS_Orbital] = "SZV-I";//GTH";
+   char const *
+       pUnitCellAtomsXyz =
+       "2                                    "
+       "\n(this is xyz format--but a.u input!) "
+       "\nH   4.0000   4.000   4.000000      "
+       "\nH   4.0000   4.000   4.94486306228253003"
+       "\n";
+#else
    // begin with a slightly skewed lattice. Should catch
    // various problems with orthogonality.
    double f = 1.4;
@@ -53,9 +70,14 @@ int main(int argc, char *argv[])
        "\nH   0.0000   0.100   -0.710          "
        "\nH   0.1200   0.000   +0.710          "
        "\n";
+#endif
    Solid.UnitCell.AddAtomsFromXyzData(pUnitCellAtomsXyz, 1.0, DefaultBases);
    Solid.UnitCell.Volume = Solid.Lattice.UnitCellVolume;
+#if defined DEBUG_CLS
+   Solid.SuperCell.Init(FVector3i(1,1,1), Solid.Lattice, Solid.UnitCell);
+#else
    Solid.SuperCell.Init(FVector3i(2,2,2), Solid.Lattice, Solid.UnitCell);
+#endif
    Solid.UnitCell.OrbBasis.SetPeriodicityVectors(Solid.SuperCell.T);
 
    // allocate memory for density matrix, exchange matrix and coulomb matrix
@@ -121,11 +143,13 @@ int main(int argc, char *argv[])
 
    }
    
-   if (0) {
+   if (1) {
        // test coulomb lattice sum
        double coul_energy;
+       cls::set_num_grids_in_unit_cell(100, 100, 100);
        coul_energy = cls::coul_matrix(Solid, Density, Coulomb); 
-       xout << coul_energy << std::endl;
+       xout << "Coul e = " << coul_energy << std::endl;
+       throw;
    }
 
 

@@ -188,8 +188,9 @@ equation \eqref{eq:poisson}
   \label{eq:v:real}
 \end{align}
 where $n_x,n_y,n_z$ are the number of mesh grids along the Cartesian axes in
-one cell.  We have already employed the 3D discrete Fourier transform (DFT)
-and its inverse counterpart in the above equations
+one cell.
+In the above equations, We have already employed the 3D discrete Fourier
+transform (DFT) and its inverse counterpart 
 \begin{align}
   \tilde{\rho}(\mathbf{k}_x,\mathbf{k}_y,\mathbf{k}_z)
   &=\sum_{x=0}^{n_x-1} \sum_{y=0}^{n_y-1} \sum_{z=0}^{n_z-1}
@@ -268,6 +269,24 @@ cell which is
   n = n_x n_y n_z
   \label{}
 \end{equation}
+
+It should be noted that the FFT Poisson solver cannot confirm the electric
+gauge of the potential in Eq. \eqref{eq:v:real}.
+The actual electric potential may differ from the one in Eq.
+\eqref{eq:v:real} by a constant.
+\begin{equation}
+  4\pi \tilde{\rho}(\mathbf{k}) = \nabla^2\tilde{V}(\mathbf{r})
+  = \nabla^2(\tilde{V}(\mathbf{r}) + C)
+  \label{}
+\end{equation}
+So the matrix elements of the Coulomb potential and the energy may be changed
+accordingly.
+\begin{align}
+  &\tilde{V}_{\mu\nu}^{0J} \rightarrow \tilde{V}_{\mu\nu}^{0J} + CS_{\mu\nu}^{0J} \\
+  &\varepsilon \rightarrow \varepsilon + C
+  \label{}
+\end{align}
+
 
 
 \section{Programming model}

@@ -104,7 +104,9 @@ void FBasisSet::AddAicShell(aic::FGaussShell const &Shell)
          fRange = std::max(fRange, pRangeCo[iCo]);
       Mem.Free(pRangeCo);
    }
+   
    gi.iRange = Data.size();
+   // printf("range: iRange=%i   Range=%.5f\n",gi.iRange, fRange);
    Data.push_back(fRange);
    Groups.push_back(gi);
    Centers.push_back(Shell.vCenter);

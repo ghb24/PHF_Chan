@@ -1,7 +1,6 @@
 !Routine for constructing the a/c lattice sum list, and the orbital pairs that need to go with the
 !exchange interaction.
 !IN: Cell info
-!    iMaxCodensTrans - maximum translation in any one direction from gamma-point to consider)
 !    dCoDensTol - Tolerance for inclusion of codensity in list, based on |(ij|ij)|^0.5
 !OUT: Ex_Codens, which contains:
 !   - Number of unique translation vectors between all groups in codensity: nTransVecs
@@ -16,7 +15,7 @@
 !       - Approximate center of codensity between groups (used for b lattice sum screening)
 
 !Locally, also output largest translation vector in terms of sum of squared distance
-subroutine ConstructLattSumOrbPairs(Ex_Codens,Lattice,UnitCell,Supercell,iMaxCodensTrans,dCoDensTol)
+subroutine ConstructLattSumOrbPairs(Ex_Codens,Lattice,UnitCell,Supercell,dCoDensTol)
     use CvsFDatatypes
     use error_mod, only: stop_all
     use FortCons, only: dp
@@ -26,20 +25,27 @@ subroutine ConstructLattSumOrbPairs(Ex_Codens,Lattice,UnitCell,Supercell,iMaxCod
     type(lattice_t) , intent(in) :: Lattice
     type(unit_cell_t), intent(in)  :: UnitCell
     type(supercell_t), intent(in) :: Supercell
-    integer, intent(in) :: iMaxCodensTrans
     real(dp), intent(in) :: dCoDensTol
     !Unpacked arrays
     type(GroupInfo), pointer :: Supercell_groups(:)
     type(GroupInfo), pointer :: Unitcell_groups(:)
+    real(dp), pointer :: Supercell_data(:)
+    real(dp), pointer :: Supercell_centers(:,:),Unitcell_coords(:,:)
     !local arguments
-    integer :: UnitCellFns,SupercellFns,abf,bbf
+    integer :: iMaxCodensTrans  !maximum translation in any one direction from gamma-point to consider
+    integer :: UnitCellFns,SupercellFns,abf,bbf,nAtoms,c
     integer :: ngroups_super,ngroups_unit,nTrans,iNumGroups
-    integer :: ic,nlargestshell,strides(4),iMaxTrans
+    integer :: ic,nlargestshell,strides(4),iMaxTrans,cbf,dbf
     integer :: i,a,b,nbf_a,nbf_b,lx,lxd,x,ly,lyd,y,z,lz,lzd
-    real(dp) :: L,Rc,zTrans(3),TransVec(3),magint
+    real(dp) :: L,L_x,L_y,L_z,Rc,zTrans(3),TransVec(3),magint,maxrange,mindim
+    real(dp) :: rangefuncs,distance,center_a(3),center_b(3),maxint
     integer, allocatable :: MaxTransVecs(:,:)
     real(dp), allocatable :: int_temp(:,:,:,:)
     logical ::  tIncTrans
+    !parameters
+    character(len=*), parameter :: t_r='ConstructLattSumOrbPairs'
+    logical, parameter :: tMakeListByRange = .true.  
+    logical, parameter :: tCreateCSList = .true.
     !external functions
     integer :: create_integral_context
     
@@ -50,18 +56,36 @@ subroutine ConstructLattSumOrbPairs(Ex_Codens,Lattice,UnitCell,Supercell,iMaxCod
     call c_f_pointer(Supercell%OrbBasis%Groups%pData, Supercell_groups, [Supercell%OrbBasis%Groups%nSize])
     !Extract the basis set over the unit cell 
     call c_f_pointer(Unitcell%OrbBasis%Groups%pData, Unitcell_groups, [Unitcell%OrbBasis%Groups%nSize])
+    nAtoms = Unitcell%Coords%nSize
+    call c_f_pointer(Unitcell%Coords%pData, Unitcell_coords, [3,Unitcell%Coords%nSize])
+    !Extract the data for the supercell functions (You never get this directly, but rather it is pointed to from group objects)
+    !When pointing to elements in this array, beware that it points to the element before it, therefore, you need to add 1!1
+    call c_f_pointer(Supercell%OrbBasis%Data%pData, Supercell_data, [Supercell%OrbBasis%Data%nSize])
+    call c_f_pointer(Supercell%OrbBasis%Centers%pData, Supercell_centers, [3,Supercell%OrbBasis%Centers%nSize])
 
     ngroups_super = Supercell%OrbBasis%Groups%nSize
     write(6,*) "Number of groups of basis functions in supercell: ",ngroups_super
     write(6,*) "Number of functions in supercell: ",SupercellFns
     ngroups_unit = Unitcell%OrbBasis%Groups%nSize
     write(6,*) "Number of groups of basis functions in unitcell: ",ngroups_unit
+
+    write(6,"(A,3F12.6)") "SC Lattice_x = ",Supercell%T(1,1),Supercell%T(2,1),Supercell%T(3,1)
+    write(6,"(A,3F12.6)") "SC Lattice_y = ",Supercell%T(1,2),Supercell%T(2,2),Supercell%T(3,2)
+    write(6,"(A,3F12.6)") "SC Lattice_z = ",Supercell%T(1,3),Supercell%T(2,3),Supercell%T(3,3)
+    write(6,*) ""
+    write(6,*) "Atom coordinates: "
+    do i=1,nAtoms
+        write(6,"(A,I5,3F12.6)") "Atom ",i,Unitcell_coords(:,i)
+    enddo
     
 !In future, there should be a routine here for constructing the optimal Rc 
     !Want Rc .le. L/2
-    !Calculate L for cubic cell - just take one direction. Won't be right in general
-    L = sqrt(Supercell%T(1,1)**2 + Supercell%T(2,1)**2 + Supercell%T(3,1)**2)
-    write(6,*) "Length of supercell is approximately: ",L
+    !Calculate average L for supercell
+    L_x = sqrt(Supercell%T(1,1)**2 + Supercell%T(2,1)**2 + Supercell%T(3,1)**2)
+    L_y = sqrt(Supercell%T(1,2)**2 + Supercell%T(2,2)**2 + Supercell%T(3,2)**2)
+    L_z = sqrt(Supercell%T(1,3)**2 + Supercell%T(2,3)**2 + Supercell%T(3,3)**2)
+    L = (L_x + L_y + L_z) / 3.0_dp
+    write(6,*) "Average length of supercell dimensions is: ",L
     Rc = L/2.0_dp 
     write(6,*) "Truncated coulomb potential kernel cutoff: ",Rc
 
@@ -70,18 +94,51 @@ subroutine ConstructLattSumOrbPairs(Ex_Codens,Lattice,UnitCell,Supercell,iMaxCod
     !call assign_integral_kernel(ic,3,0,0)  !3 is for coulomb kernal
     !Truncated coulomb
     call assign_integral_kernel(ic,6,0,Rc)  !6 is for truncated coulomb kernal
-
-    write(6,"(A)") "Constructing list of codensities for exchange summation"
-
-    !What is the largest number of integrals (ij|ij) that can come out of two shells?
-    nlargestshell = 0
+    write(6,"(A)") "Constructing screened list of codensities for exchange summation"
+    if(tMakeListbyRange) then
+        write(6,"(A)") "This screening be based on a range criteria of the orbitals which make up the codensity"
+        if(tCreateCSList) write(6,"(A)") "The Cauchy-Schwartz criteria will also be saved for use later on"
+    else
+        write(6,"(A)") "This screening will be based on a Cauchy-Schwarz criterion"
+        write(6,"(A)") "This will be slower than the range based criteria"
+    endif
+    
+    !Find an approximate guess for the number of supercell lattice vectors to use in each direction
+    !A highly conservative guess will be int(largest function range*2/smallest supercell dimension) + 1
+    !This should be a good approximation to the greatest distance we need to go out
+    maxrange = 0.0_dp
     do i = 1,ngroups_super
-        if(Supercell_groups(i)%nFn.gt.nlargestshell) nlargestshell = Supercell_groups(i)%nFn
+        !write(6,*) Supercell_groups(i)%iRange,Supercell_data(Supercell_groups(i)%iRange+1)
+        if(Supercell_data(Supercell_groups(i)%iRange+1).gt.maxrange) then
+            maxrange = Supercell_data(Supercell_groups(i)%iRange+1)
+        !    write(6,*) "MaxRange: ",Supercell_data(Supercell_groups(i)%iRange+1)
+        endif
     enddo
-    write(6,*) "Largest number of functions in a group: ",nlargestshell
-    !How many integrals does this mean that we can get out of an (ij|ij) set?
-    allocate(int_temp(nlargestshell,nlargestshell,nlargestshell,nlargestshell)) !This is to temporarily hold the integrals
-    strides = (/ 1 , nlargestshell , nlargestshell**2 , nlargestshell**3 /)
+    if(maxrange.lt.1.0e-5_dp) call stop_all(t_r,'Error here')
+    write(6,*) "Largest range of any one basis function in the supercell is approximately: ",maxrange
+    mindim = L_x 
+    if(L_y.lt.mindim) then
+        mindim = L_y
+    endif
+    if(L_z.lt.mindim) then
+        mindim = L_z
+    endif
+    write(6,*) "Smallest supercell dimension is: ",mindim
+    iMaxCodensTrans = int(maxrange*2.0_dp/mindim) + 1
+    write(6,*) "Considering all supercell translation vectors in each direction up to ",iMaxCodensTrans
+
+    if((.not.tMakeListbyRange).or.tCreateCSList) then
+        !What is the largest number of integrals (ij|ij) that can come out of two shells?
+        !This is so we can store them when we calculate the exchange integrals.
+        nlargestshell = 0
+        do i = 1,ngroups_super
+            if(Supercell_groups(i)%nFn.gt.nlargestshell) nlargestshell = Supercell_groups(i)%nFn
+        enddo
+        write(6,*) "Largest number of functions in a group: ",nlargestshell
+        !How many integrals does this mean that we can get out of an (ij|ij) set?
+        allocate(int_temp(nlargestshell,nlargestshell,nlargestshell,nlargestshell)) !This is to temporarily hold the integrals
+        strides = (/ 1 , nlargestshell , nlargestshell**2 , nlargestshell**3 /)
+    endif
 
 !Allocate memory to hold maximum possible translation vectors that we need to consider
 !iMaxCodensTrans gives the number of translations in a given direction. Find the maximum number of translation vectors to consider
@@ -124,50 +181,75 @@ subroutine ConstructLattSumOrbPairs(Ex_Codens,Lattice,UnitCell,Supercell,iMaxCod
                             TransVec(:) = 0.0_dp    !3-vector of displacements for group b
                             TransVec(:) = x*Supercell%T(:,1) + y*Supercell%T(:,2) + z*Supercell%T(:,3)
                             tIncTrans = .false. !flag to indicate whether to include this translation in the list
-                            write(6,"(A,3I5)") "Considering SC translation: ",x,y,z
+                            !write(6,"(A,3I5)") "Considering SC translation: ",x,y,z
 
                             do a = 1,ngroups_super
-
-                                write(6,*) "Considering gamma-point group: ",a
+                                !write(6,*) "Considering gamma-point group: ",a
                                 nbf_a = Supercell_groups(a)%nFn
 
                                 !Now loop over functions in this translated supercell
                                 do b = 1,ngroups_super
-
                                     nbf_b = Supercell_groups(b)%nFn
-                                    int_temp(:,:,:,:) = 0.0_dp
-                                    !Calculate set of integrals between all functions between these groups
-                                    call eval_group_int2e_tra_incr(int_temp(1,1,1,1),strides(1),    &
-                                        1.0_dp,a-1,zTrans(1),b-1,TransVec(1),a-1,zTrans(1),b-1,     &
-                                        TransVec(1),Supercell%OrbBasis,ic)
 
-                                    !TODO: Check these orbitals are now packed as expected
+                                    if(tMakeListbyRange) then
+                                        !if |center_a - (center_b + T_c)| < Range_a + Range_b, then accept
+                                        center_a(1:3) = Supercell_centers(:,Supercell_groups(a)%iCen+1)
+                                        center_b(1:3) = Supercell_centers(:,Supercell_groups(b)%iCen+1)+TransVec(:)
+                                        distance = (center_a(1)-center_b(1))**2
+                                        distance = distance + (center_a(2)-center_b(2))**2
+                                        distance = distance + (center_a(3)-center_b(3))**2
+                                        distance = sqrt(distance)
+                                        !write(6,*) "Center a: ",center_a(:)
+                                        !write(6,*) "Center b: ",center_b(:)
+                                        !write(6,*) "Distance between functions: ",a,b,distance
+                                        rangefuncs = Supercell_data(Supercell_groups(a)%iRange+1) + Supercell_data(Supercell_groups(b)%iRange+1)
 
-                                    !Now, we want to run through the diagonal exchange integrals, to check for
-                                    !whether to include them or not
-                                    loop: do abf = 1,nbf_a
-                                        do bbf = 1,nbf_b
-                                            magint = sqrt(abs(int_temp(abf,bbf,abf,bbf)))
-                                            if(magint.gt.dCoDensTol) then
-                                                !We want to include consideration of this group
-                                                if(.not.tIncTrans) then
-                                                    !We want to include this translation vector
-                                                    nTrans = nTrans + 1 !Increment list of lattice vectors
-                                                    MaxTransVecs(1,nTrans) = x
-                                                    MaxTransVecs(2,nTrans) = y
-                                                    MaxTransVecs(3,nTrans) = z
-                                                    tIncTrans = .true.
-                                                endif
-                                                iNumGroups = iNumGroups + 1
-                                                write(16,*) x**2+y**2+z**2,magint
-                                                !exit loop
+                                        if(distance.lt.rangefuncs) then
+                                            !include these groups in list
+                                            if(.not.tIncTrans) then
+                                                !We want to include this translation vector
+                                                nTrans = nTrans + 1 !Increment list of lattice vectors
+                                                MaxTransVecs(1,nTrans) = x
+                                                MaxTransVecs(2,nTrans) = y
+                                                MaxTransVecs(3,nTrans) = z
+                                                tIncTrans = .true.
                                             endif
-                                        enddo
-                                    enddo loop
+                                            iNumGroups = iNumGroups + 1
+                                        endif
+                                    else
+                                        !Include based on the max value of |(ab^c|ab^c)|^0.5
+                                        int_temp(:,:,:,:) = 0.0_dp
+                                        !Calculate set of integrals between all functions between these groups
+                                        call eval_group_int2e_tra_incr(int_temp(1,1,1,1),strides(1),    &
+                                            1.0_dp,a-1,zTrans(1),b-1,TransVec(1),a-1,zTrans(1),b-1,     &
+                                            TransVec(1),Supercell%OrbBasis,ic)
+
+                                        !Now, we want to run through the diagonal exchange integrals, to check for
+                                        !whether to include them or not
+                                        loop: do abf = 1,nbf_a
+                                            do bbf = 1,nbf_b
+                                                magint = sqrt(abs(int_temp(abf,bbf,abf,bbf)))
+                                                if(magint.gt.dCoDensTol) then
+                                                    !We want to include consideration of this group
+                                                    if(.not.tIncTrans) then
+                                                        !We want to include this translation vector
+                                                        nTrans = nTrans + 1 !Increment list of lattice vectors
+                                                        MaxTransVecs(1,nTrans) = x
+                                                        MaxTransVecs(2,nTrans) = y
+                                                        MaxTransVecs(3,nTrans) = z
+                                                        tIncTrans = .true.
+                                                    endif
+                                                    iNumGroups = iNumGroups + 1
+                                                    !write(16,*) x**2+y**2+z**2,magint
+                                                    exit loop
+                                                endif
+                                            enddo
+                                        enddo loop
+                                    endif
 
                                 enddo   !end b
-
-                                !TODO: We need an exit criterion to get out of these loops if we have definitely gone far enough
+                                !TODO:  We need an exit criterion to get out of these loops if we have definitely gone far enough
+                                !       Use whether range criteria is acceptable for any functions in the supercell
 
                             enddo   !lzd
                         enddo   !lz
@@ -183,11 +265,138 @@ subroutine ConstructLattSumOrbPairs(Ex_Codens,Lattice,UnitCell,Supercell,iMaxCod
     enddo
     write(6,"(A,I9,A,I9,A)") "This corresponds to ",nTrans," SC translations out of a possible searched ",iMaxTrans," translations."
     write(6,*) ""
-    write(6,"(A,I15)") "Total number of group pairs to consider for each electron in exchange sum: ",iNumGroups
+    write(6,"(A,I9,A,I9)") "Total number of group pairs to consider for each electron in exchange sum: ",iNumGroups,    &
+        " out of a possible ",(ngroups_super**2)*iMaxTrans
 
     !Now, move this list into the appropriate derived type
-    !allocate(Ex_Codens%TransVecs%pData(3,nTrans))
-    !Ex_Codens%TransVecs%nSize = nTrans*3
+    Ex_Codens%nTransVecs = nTrans
+    Ex_Codens%ngroup_pairs = iNumGroups
+    Ex_Codens%ngroup_pairs_UC = 0 
+    allocate(Ex_Codens%iTransVecs(3,nTrans))
+    Ex_Codens%iTransVecs(:,:) = 0
+    do i = 1,nTrans
+        Ex_Codens%iTransVecs(:,i) = MaxTransVecs(:,i)
+    enddo
+    deallocate(MaxTransVecs)
+
+    !Now allocate the group pair list
+    allocate(Ex_Codens%grouppairlist%group_labels(2,iNumGroups))
+    Ex_Codens%grouppairlist%group_labels(:,:) = 0
+    allocate(Ex_Codens%grouppairlist%transVec(3,iNumGroups))
+    Ex_Codens%grouppairlist%transVec(:,:) = 0.0_dp
+    if(tMakeListbyRange.and.tCreateCSList) then
+        !We are not using the CS criteria to select the groups, but store them anyway
+        allocate(Ex_Codens%grouppairlist%CS_Fac(iNumGroups))
+        Ex_Codens%grouppairlist%CS_Fac(:) = 0.0_dp
+    endif
+    allocate(Ex_Codens%grouppairlist%den_radius(iNumGroups))
+    Ex_Codens%grouppairlist%den_radius(:) = 0.0_dp
+    allocate(Ex_Codens%grouppairlist%den_center(3,iNumGroups))
+    Ex_Codens%grouppairlist%den_center(:,:) = 0.0_dp
+
+    iNumGroups = 0  !Reset this counter
+    !Now fill these arrays!
+    do a = 1,ngroups_super
+        !write(6,*) "Considering gamma-point group: ",a
+        nbf_a = Supercell_groups(a)%nFn
+        if(a.eq.ngroups_unit+1) then
+            !We have just started moving into functions outside the unit cell
+            Ex_Codens%ngroup_pairs_UC = iNumGroups 
+        endif
+
+        !Now loop over functions in this translated supercell
+        do b = 1,ngroups_super
+            nbf_b = Supercell_groups(b)%nFn
+
+            do c = 1,nTrans !Loop over translations of b
+                TransVec(:) = Ex_Codens%iTransVecs(1,c)*Supercell%T(:,1) +   &
+                              Ex_Codens%iTransVecs(2,c)*Supercell%T(:,2) +   &
+                              Ex_Codens%iTransVecs(3,c)*Supercell%T(:,3)
+
+                !Now determine if we want to store this group pair
+                if(tMakeListbyRange) then
+                    !if |center_a - (center_b + T_c)| < Range_a + Range_b, then accept
+                    center_a(1:3) = Supercell_centers(:,Supercell_groups(a)%iCen+1)
+                    center_b(1:3) = Supercell_centers(:,Supercell_groups(b)%iCen+1)+TransVec(:)
+                    distance = (center_a(1)-center_b(1))**2
+                    distance = distance + (center_a(2)-center_b(2))**2
+                    distance = distance + (center_a(3)-center_b(3))**2
+                    distance = sqrt(distance)
+                    !write(6,*) "Center a: ",center_a(:)
+                    !write(6,*) "Center b: ",center_b(:)
+                    !write(6,*) "Distance between functions: ",a,b,distance
+                    rangefuncs = Supercell_data(Supercell_groups(a)%iRange+1) + Supercell_data(Supercell_groups(b)%iRange+1)
+
+                    if(distance.lt.rangefuncs) then
+                        !include these groups in list
+                        iNumGroups = iNumGroups + 1
+                        if(iNumGroups.gt.Ex_Codens%ngroup_pairs) call stop_all(t_r,'Error counting')
+
+                        Ex_Codens%grouppairlist%group_labels(1,iNumGroups) = a
+                        Ex_Codens%grouppairlist%group_labels(2,iNumGroups) = b
+                        Ex_Codens%grouppairlist%transVec(:,iNumGroups) = TransVec(:)
+                        if(tCreateCSList) then
+                            !Find max CS integral between the groups
+                            int_temp(:,:,:,:) = 0.0_dp
+                            !Calculate set of integrals between all functions between these groups
+                            call eval_group_int2e_tra_incr(int_temp(1,1,1,1),strides(1),    &
+                                1.0_dp,a-1,zTrans(1),b-1,TransVec(1),a-1,zTrans(1),b-1,     &
+                                TransVec(1),Supercell%OrbBasis,ic)
+
+                            !Now, we want to run through the diagonal exchange integrals, to check for
+                            !whether to include them or not
+                            maxint = 0.0_dp
+                            do abf = 1,nbf_a
+                                do bbf = 1,nbf_b
+                                    !We have to just go through all the integrals here, since 
+                                    !we want to store the maximum one
+                                    magint = sqrt(abs(int_temp(abf,bbf,abf,bbf)))
+                                    if(magint.gt.maxint) maxint = magint
+                                enddo
+                            enddo
+                            Ex_Codens%grouppairlist%CS_Fac(iNumGroups) = maxint
+                        endif
+                        !Find approximate radius of this codensity TODO
+                        !Simplest to start with - midpoint of functions, and radius = distance between the functions
+                    endif
+                else
+                    !Include based on the max value of |(ab^c|ab^c)|^0.5
+                    int_temp(:,:,:,:) = 0.0_dp
+                    !Calculate set of integrals between all functions between these groups
+                    call eval_group_int2e_tra_incr(int_temp(1,1,1,1),strides(1),    &
+                        1.0_dp,a-1,zTrans(1),b-1,TransVec(1),a-1,zTrans(1),b-1,     &
+                        TransVec(1),Supercell%OrbBasis,ic)
+
+                    !Now, we want to run through the diagonal exchange integrals, to check for
+                    !whether to include them or not
+                    maxint = 0.0_dp
+                    do abf = 1,nbf_a
+                        do bbf = 1,nbf_b
+                            !We have to just go through all the integrals here, since 
+                            !we want to store the maximum one
+                            magint = sqrt(abs(int_temp(abf,bbf,abf,bbf)))
+                            if(magint.gt.maxint) maxint = magint
+                        enddo
+                    enddo
+                    if(maxint.gt.dCoDensTol) then
+                        !We want to include consideration of this group
+                        iNumGroups = iNumGroups + 1
+                        if(iNumGroups.gt.Ex_Codens%ngroup_pairs) call stop_all(t_r,'Error counting')
+                        !write(16,*) x**2+y**2+z**2,magint
+                        Ex_Codens%grouppairlist%group_labels(1,iNumGroups) = a
+                        Ex_Codens%grouppairlist%group_labels(2,iNumGroups) = b
+                        Ex_Codens%grouppairlist%transVec(:,iNumGroups) = TransVec(:)
+                        Ex_Codens%grouppairlist%CS_Fac(iNumGroups) = maxint
+                        !Now also calculate radius and center of codensity!
+                    endif
+
+                endif
+
+            enddo   !Lattice sum
+        enddo   !b
+    enddo   !a
+
+    write(6,*) "Finished storing codensity list for exchange calculation..."
 
 end subroutine ConstructLattSumOrbPairs
 
@@ -236,16 +445,14 @@ subroutine ExchangeSum(ExEnergy,Exchange,Lattice,UnitCell,Supercell,Density)
     integer :: create_integral_context
     real(dp) :: DDOT
 
-    call ConstructLattSumOrbPairs(Ex_Codens,Lattice,UnitCell,Supercell,6,1.0e-8_dp)
-
-    call stop_all(t_r,'end')
+    call ConstructLattSumOrbPairs(Ex_Codens,Lattice,UnitCell,Supercell,1.0e-7_dp)
 
     UnitCellFns = UnitCell%OrbBasis%nFn
-    write(6,*) "Number of basis functions in unit cell: ",UnitCellFns
+    !write(6,*) "Number of basis functions in unit cell: ",UnitCellFns
     SupercellFns = Supercell%OrbBasis%nFn
-    write(6,*) "Number of basis functions in supercell: ",SupercellFns
+    !write(6,*) "Number of basis functions in supercell: ",SupercellFns
 
-    write(6,*) "Number of unit cells in supercell: ",Supercell%Size(:)
+    !write(6,*) "Number of unit cells in supercell: ",Supercell%Size(:)
     if((SupercellFns-(Supercell%Size(1)*Supercell%Size(2)*  &
         Supercell%Size(3))*UnitCellFns).ne.0) then
         write(6,*) "SupercellFns: ",SupercellFns
@@ -271,7 +478,7 @@ subroutine ExchangeSum(ExEnergy,Exchange,Lattice,UnitCell,Supercell,Density)
     call c_f_pointer(Density%Data%pData, DenMat, [UnitCellFns,SupercellFns])
     call c_f_pointer(Exchange%Data%pData, ExMat, [UnitCellFns,SupercellFns])
 
-    write(6,*) "Size of matrices as expected"
+    !write(6,*) "Size of matrices as expected"
 
     !Unpack symmetry
     allocate(UnpackedDM(SupercellFns,SupercellFns),stat=ierr)
@@ -297,9 +504,9 @@ subroutine ExchangeSum(ExEnergy,Exchange,Lattice,UnitCell,Supercell,Density)
     call c_f_pointer(Unitcell%OrbBasis%Groups%pData, Unitcell_groups, [Unitcell%OrbBasis%Groups%nSize])
 
     ngroups_super = Supercell%OrbBasis%Groups%nSize
-    write(6,*) "Number of groups of basis functions in supercell: ",ngroups_super
+    !write(6,*) "Number of groups of basis functions in supercell: ",ngroups_super
     ngroups_unit = Unitcell%OrbBasis%Groups%nSize
-    write(6,*) "Number of groups of basis functions in unitcell: ",ngroups_unit
+    !write(6,*) "Number of groups of basis functions in unitcell: ",ngroups_unit
     
     !write(6,*) "Unitcell lattice is: "
     !write(6,*) "Vector 1: ",Lattice%T(:,1)

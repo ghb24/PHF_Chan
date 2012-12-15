@@ -85,21 +85,21 @@ module CvsFDatatypes
     end type
     
     !Type for codensity of two group functions
-    type, bind(c) :: group_pairs_t
-        type(dyn_array_t) :: group_labels   !Type integer(2) - List of group pairs to consider in lattice sums, labelled by supercell indices
-        type(dyn_array_t) :: transVec       !Type integer(3) - SC translation vector of second group index
-        type(dyn_array_t) :: CS_Fac         !Type dp - max value of |(ij_c|ij_c)|^0.5 between the functions in the two groups
-        type(dyn_array_t) :: den_radius     !Type dp - approximate max radius of the codensity between functions in the two groups
-        type(dyn_array_t) :: den_center     !Type dp - approximate center of the codensity between functions in the two groups
+    type :: group_pairs_t
+        integer, allocatable :: group_labels(:,:)   !(2,ngroup_pairs) - List of group pairs to consider in lattice sums, labelled by supercell indices
+        real(dp), allocatable :: transVec(:,:)       !(3,ngroup_pairs) - real translation vector of second group index
+        real(dp), allocatable :: CS_Fac(:)          !(ngroup_pairs) - max value of |(ij_c|ij_c)|^0.5 between the functions in the two groups
+        real(dp), allocatable :: den_radius(:)      !(ngroup_pairs) - approximate max radius of the codensity between functions in the two groups
+        real(dp), allocatable :: den_center(:,:)    !(3,ngroup_pairs) - approximate center of the codensity between functions in the two groups
     end type
 
     !Type which corresponds to the list of codensities to consider in the exchange sum
-    type, bind(c) :: exchange_densities_t
-        integer :: nTransVecs               !Number of unique translation vectors between all pairs of groups to consider
-        type(dyn_array_t) :: TransVecs      !Type integer(3) - supercell translation vectors to consider
-        integer :: ngroup_pairs             !Number of group pairs to consider in codensity sum
-        integer :: ngroup_pairs_UC          !Number of group pairs where first group index is in the unit cell (these are indexed first)
-        type(group_pairs_t) :: grouppairlist   !List of group pairs
+    type :: exchange_densities_t
+        integer :: nTransVecs                   !Number of unique translation vectors between all pairs of groups to consider
+        integer, allocatable :: iTransVecs(:,:)  !(3,nTransVecs) - supercell translation factors to consider
+        integer :: ngroup_pairs                 !Number of group pairs to consider in codensity sum
+        integer :: ngroup_pairs_UC              !Number of group pairs where first group index is in the unit cell (these are indexed first)
+        type(group_pairs_t) :: grouppairlist    !List of group pairs
     end type
 
 ! defines the physical lattice: allowed periodic translations of the unit-cell.

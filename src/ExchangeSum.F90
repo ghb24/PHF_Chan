@@ -47,7 +47,7 @@ subroutine ConstructLattSumOrbPairs(Ex_Codens,Lattice,UnitCell,Supercell,dCoDens
     logical ::  tIncTrans
     !parameters
     character(len=*), parameter :: t_r='ConstructLattSumOrbPairs'
-    logical, parameter :: tMakeListByRange = .false. 
+    logical, parameter :: tMakeListByRange = .true.  
     logical, parameter :: tCreateCSList = .true.
     !external functions
     integer :: create_integral_context
@@ -434,23 +434,21 @@ subroutine ExchangeSum(ExEnergy,Exchange,Lattice,UnitCell,Supercell,Density)
 
     !Local variables
     real(dp) :: dDenDim   !Dimension of density matrix
-    real(dp) :: Rc,L_x,L_y,L_z,L
-    integer :: UnitCellFns
-    integer :: SupercellFns
-    integer :: ap,bp,cp,i,j,ic,ierr
-    integer :: nnu,nsig,nlam,nmu,ngroups_unit,ngroups_super,nperms_a,nperms_b,nperms_c
-    integer :: lam_shell,mu_shell,sig_shell,nu_shell
-    integer :: lam,mu,nu,sig,xlam,xmu,nSS_Sq
-    integer :: shella,shellb,shellc,SymUniqUnitcellFns
+    real(dp) :: mu_nu_CS
+    real(dp) :: Rc,L_x,L_y,L_z,L,TransVec(3),BplusCTrans(3),mu_nu_trans(3),lam_sig_trans(3),zTrans(3)
+    integer :: UnitCellFns,lam_ind,sig_ind,nu_ind,mu_ind,lam_sig,lambf,mubf,nubf,sigbf
+    integer :: lx,ly,lz,lxd,lyd,lzd,mu_nu,nbf_lam,nbf_mu,nbf_nu,nbf_sig
+    integer :: SupercellFns,ngroups_super,ngroups_unit,nlargestshell,x,y,z
+    integer :: lam,mu,nu,sig,i,ic,ierr,iMaxCodensTrans 
     real(dp), allocatable :: UnpackedDM(:,:)    !SS x SS unpacked DM
-    real(dp), allocatable :: ConvergedInts(:,:,:,:) !The converged integrals
-    !The lattice translations for the sums
-    integer, allocatable :: a_vecs(:,:),b_vecs(:,:),c_vecs(:,:)   
-    !Real-space translations of each orbital in the integral sum
-    real(dp) :: TransVec(3,4)
+    real(dp), allocatable :: Int_Temp(:,:,:,:)
+    integer, allocatable :: FunctionInd_Shell(:)
     integer :: strides(4)
+    logical :: tIncTrans,tLattSum
     character(len=*), parameter :: t_r='ExchangeSum'
     real(dp) , parameter :: CS_CodensThresh = 1.0e-7_dp
+    real(dp) , parameter :: NF_ScreenTol = 1.0e-8_dp
+    real(dp) , parameter :: DM_ScreenTol = 1.0e-8_dp
     logical , parameter :: Far_fieldScreen = .true.
 
     !external functions
@@ -536,29 +534,181 @@ subroutine ExchangeSum(ExEnergy,Exchange,Lattice,UnitCell,Supercell,Density)
     write(6,*) "Average length of supercell dimensions is: ",L
     Rc = L/2.0_dp 
     write(6,*) "Truncated coulomb potential kernel cutoff: ",Rc
+    zTrans(:) = 0.0_dp  !The null translation vector
 
     ic = create_integral_context(0,0,1.0e-10_dp)
     !Plain coulomb
     !call assign_integral_kernel(ic,3,0,0)  !3 is for coulomb kernal
     !Truncated coulomb
     call assign_integral_kernel(ic,6,0,Rc)  !6 is for truncated coulomb kernal
+    
+    !What is the largest number of integrals (ij|ij) that can come out of two shells?
+    !This is so we can store them when we calculate the exchange integrals.
+    nlargestshell = 0
+    do i = 1,ngroups_super
+        if(Supercell_groups(i)%nFn.gt.nlargestshell) nlargestshell = Supercell_groups(i)%nFn
+    enddo
+    write(6,*) "Largest number of functions in a group: ",nlargestshell
+    !How many integrals does this mean that we can get out of an (ij|ij) set?
+    allocate(int_temp(nlargestshell,nlargestshell,nlargestshell,nlargestshell)) !This is to temporarily hold the integrals
+    strides = (/ 1 , nlargestshell , nlargestshell**2 , nlargestshell**3 /)
+
+    !Array Point to starting function of each shell - 1
+    allocate(FunctionInd_Shell(ngroups_super))
+    FunctionInd_Shell(:) = 0
+    do i=2,ngroups_super
+        FunctionInd_Shell(i) = FunctionInd_Shell(i-1) + Supercell_groups(i-1)%nFn
+    enddo
+!    write(6,*) "FunctionInd_Shell = ",FunctionInd_Shell(:)
+
+!TODO: Sort out a proper bound for this - perhaps by looking at the largest estimated range between two functions & Rc
+    iMaxCodensTrans = 6
+    write(6,*) "Maximum number of translations in each direction: ",iMaxCodensTrans
 
     !Now, construct exchange matrix
+    do mu_nu = 1, Ex_Codens%ngroup_pairs_UC
+        !Run over codensities, with the first index in the unit cell, and second in supercell
 
+        !Index of the shells mu and nu
+        mu_ind = Ex_Codens%grouppairlist%group_labels(1,mu_nu)
+        nu_ind = Ex_Codens%grouppairlist%group_labels(2,mu_nu)
 
+        nbf_mu = Supercell_groups(mu_ind)%nFn
+        nbf_nu = Supercell_groups(nu_ind)%nFn
 
+        mu_nu_trans = Ex_Codens%grouppairlist%transVec(:,mu_nu)
+        mu_nu_CS = Ex_Codens%grouppairlist%CS_Fac(mu_nu)
 
+        do lam_sig = 1, Ex_Codens%ngroup_pairs
+            
+            !Now, *near-field* screening based on CS inequality.
+            !No dependence on b translation
+            !write(6,*) mu_nu,Ex_Codens%ngroup_pairs_UC,lam_sig,Ex_Codens%ngroup_pairs, &
+            !    mu_nu_CS*Ex_Codens%grouppairlist%CS_Fac(lam_sig)
+            if((mu_nu_CS*Ex_Codens%grouppairlist%CS_Fac(lam_sig)).lt.NF_ScreenTol) cycle
 
+            lam_ind = Ex_Codens%grouppairlist%group_labels(1,lam_sig)
+            sig_ind = Ex_Codens%grouppairlist%group_labels(2,lam_sig)
 
+            !Ignore contribution if P^(nu,sig) is small
+            tLattSum = .false.
+            mu = FunctionInd_Shell(mu_ind)
+            nu = FunctionInd_Shell(nu_ind)
+            lam = FunctionInd_Shell(lam_ind)
+            sig = FunctionInd_Shell(sig_ind)
+            do nubf = nu+1,nu+nbf_nu
+                do sigbf = sig+1,sig+nbf_sig
+                    if(abs(UnpackedDM(nubf,sigbf)).gt.DM_ScreenTol) then
+                        tLattSum = .true.
+                        exit
+                    endif
+                enddo
+            enddo
+            if(.not.tLattSum) then
+                !write(6,*) "Not performing sum for : ",nu+1,sig+1
+                cycle
+            endif
 
+            nbf_lam = Supercell_groups(lam_ind)%nFn
+            nbf_sig = Supercell_groups(sig_ind)%nFn
 
+            lam_sig_trans = Ex_Codens%grouppairlist%transVec(:,lam_sig)
 
+            !Run over all supercell translations 'b'
+            do lxd = 1,2    !Which direction to go in
+                do lx = 0,iMaxCodensTrans
+                    if((lx.eq.0).and.(lxd.eq.2)) cycle
+                    if(lxd.eq.1) then
+                        x = lx
+                    else
+                        x = -lx
+                    endif
+                    do lyd = 1,2
+                        do ly = 0,iMaxCodensTrans
+                            if(lyd.eq.1) then
+                                y = ly
+                            else
+                                y = -ly
+                            endif
+                            if((ly.eq.0).and.(lyd.eq.2)) cycle
+                            do lzd = 1,2
+                                do lz = 0,iMaxCodensTrans
+                                    if((lz.eq.0).and.(lzd.eq.2)) cycle
+                                    if(lzd.eq.1) then
+                                        z = lz
+                                    else
+                                        z = -lz
+                                    endif
 
+                                    if((.not.tIncTrans).and.(z.ne.0).and.(z.ne.-1)) then
+                                        !We didn't want any of the group pairs in the last translation,
+                                        !And we have only gone out further now. Cycle through the rest of this lz set
+                                        !This shouldn't result in any less pairs added to the list, and just be
+                                        !and efficiency improvement
+                                        cycle
+                                        !TODO: We could also save how far we went out here, so that we didn't need to go out
+                                        !further for the -lz direction? This should also be done for lx and ly.
+                                        !Test this
+                                        !Change to a do while loop moving from the outside
+                                        !do while(abs(z).le.iMaxCodensTrans)
+                                    endif
 
+                                    !Calculate translation vector for groups b
+                                    TransVec(:) = 0.0_dp    !3-vector of displacements for group b
+                                    TransVec(:) = x*Supercell%T(:,1) + y*Supercell%T(:,2) + z*Supercell%T(:,3)
+                                    BplusCTrans(:) = TransVec(:) + lam_sig_trans(:)
+                                    tIncTrans = .false. !flag to indicate whether any contributions to this translation entered the exch
+                                    !write(6,"(A,3I5)") "Considering SC translation: ",x,y,z
 
+                                    !TODO: Screen here based on codensity distance
+                                    !Can we do it earlier, before we even choose to include a particular lattice translation?
 
+                                    int_temp(:,:,:,:) = 0.0_dp
+                                    !Calculate set of integrals between all functions between these groups
+                                    call eval_group_int2e_tra_incr(int_temp(1,1,1,1),strides(1),    &
+                                        1.0_dp,mu_ind-1,zTrans(1),nu_ind-1,mu_nu_trans(1),lam_ind-1,TransVec(1), &
+                                        sig_ind-1,BplusCTrans(1),Supercell%OrbBasis,ic)
 
+                                    !Index of the specific functions given by the shell
+                                    mu = FunctionInd_Shell(mu_ind)
+                                    nu = FunctionInd_Shell(nu_ind)
+                                    lam = FunctionInd_Shell(lam_ind)
+                                    sig = FunctionInd_Shell(sig_ind)
+            
+                                    do mubf = 1,nbf_mu
+                                        mu = mu + 1
+                                        do nubf = 1,nbf_nu
+                                            nu = nu + 1
+                                            do lambf = 1,nbf_lam
+                                                lam = lam + 1
+                                                do sigbf = 1,nbf_sig
+                                                    sig = sig + 1
 
+                                                    if(.not.tIncTrans) then
+                                                        if(int_temp(mubf,nubf,lambf,sigbf).gt.NF_ScreenTol) then
+                                                            tIncTrans=.true.
+                                                            !TODO: We need to include things symmetrically - we need to truncate BOTH
+                                                            !sides equally....
+                                                        endif
+                                                    endif
+
+                                                    write(66,*) x**2 + y**2 + z**2, int_temp(mubf,nubf,lambf,sigbf)
+
+                                                    ExMat(mu,lam) = ExMat(mu,lam) + UnpackedDM(nu,sig)*   &
+                                                        int_temp(mubf,nubf,lambf,sigbf)
+
+                                                enddo
+                                            enddo
+                                        enddo
+                                    enddo 
+                                enddo
+                            enddo
+                        enddo
+                    enddo
+                enddo
+            enddo
+        enddo
+    enddo
 
 
 !    nSS_Sq = SupercellFns*SupercellFns
@@ -683,7 +833,7 @@ subroutine ExchangeSum(ExEnergy,Exchange,Lattice,UnitCell,Supercell,Density)
 !    ExEnergy = 0.0_dp
 !    ExEnergy = DDOT(nSS_Sq,ExMat,1,UnpackedDM,1)
 
-    write(6,*) "Exchange energy calculated as: ",ExEnergy
+    write(6,*) "Exchange matrix calculated."
 
 end subroutine ExchangeSum
 
